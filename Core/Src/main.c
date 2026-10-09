@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <string.h>
 
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -44,6 +45,7 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -54,6 +56,7 @@ UART_HandleTypeDef huart2;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
+static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -93,6 +96,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART2_UART_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -109,32 +113,32 @@ int main(void)
   float pm_data[10];
   char debug_string[200];
 
-  while (HAL_UART_Transmit(&huart2, turn_on, 8, 2000) != HAL_OK);
+  while (HAL_UART_Transmit(&huart1, turn_on, 8, 2000) != HAL_OK);
   HAL_Delay(1000);
 
   while (1)
   {
-      /* USER CODE END WHILE */
+  /* USER CODE END WHILE */
    HAL_StatusTypeDef tx_status;
-    while ( (tx_status = HAL_UART_Transmit(&huart2, read_sensor, 6, 2000) != HAL_OK));
+    while ( (tx_status = HAL_UART_Transmit(&huart1, read_sensor, 6, 2000) != HAL_OK));
 
     /* Clear Overrun Error, Noise Error, Frame Error, and Parity Error flags */
-    __HAL_UART_CLEAR_PEFLAG(&huart2);
-    __HAL_UART_CLEAR_FEFLAG(&huart2);
-    __HAL_UART_CLEAR_NEFLAG(&huart2);
-    __HAL_UART_CLEAR_OREFLAG(&huart2);
+    __HAL_UART_CLEAR_PEFLAG(&huart1);
+    __HAL_UART_CLEAR_FEFLAG(&huart1);
+    __HAL_UART_CLEAR_NEFLAG(&huart1);
+    __HAL_UART_CLEAR_OREFLAG(&huart1);
 
     /* Flush any leftover stale bytes out of the hardware register */
-    uint32_t dummy = huart2.Instance->DR; 
+    uint32_t dummy = huart1.Instance->DR; 
     (void)dummy;
-    __HAL_UART_CLEAR_OREFLAG(&huart2); // clear error flag
+    __HAL_UART_CLEAR_OREFLAG(&huart1); // clear error flag
     const uint8_t START_STOP_BYTE= 0x7e;
     // unsigned int start_byte_received = 0;
     // int raw_index = 0;
     HAL_StatusTypeDef rx_status;
 
     // TODO ISSUE MIGHT BE TRYING RECEIVE 1 byte at a time, TRY TO RECEIVE 120, may get a HAL_TIMEOUT though
-    rx_status = HAL_UART_Receive(&huart2, receive_data_raw, 120, 2000);
+    rx_status = HAL_UART_Receive(&huart1, receive_data_raw, 120, 2000);
     if (rx_status != HAL_ERROR || rx_status != HAL_BUSY)
     {
       continue;
@@ -142,7 +146,7 @@ int main(void)
 
     // while (raw_index < 500)
     // {
-    //   rx_status = HAL_UART_Receive(&huart2, receive_buffer, 1, 2000) == HAL_OK;
+    //   rx_status = HAL_UART_Receive(&huart1, receive_buffer, 1, 2000) == HAL_OK;
     //   if (rx_status == HAL_TIMEOUT)
     //   {
     //     continue;
@@ -316,6 +320,39 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
+
 }
 
 /**
