@@ -1,0 +1,426 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : Main program body
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2026 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+#include "stm32f4xx_hal_def.h"
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+
+/* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+UART_HandleTypeDef huart2;
+
+/* USER CODE BEGIN PV */
+
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_USART2_UART_Init(void);
+/* USER CODE BEGIN PFP */
+
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
+
+/* USER CODE END 0 */
+
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
+int main(void)
+{
+
+  /* USER CODE BEGIN 1 */
+
+  /* USER CODE END 1 */
+
+  /* MCU Configuration--------------------------------------------------------*/
+
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
+
+  /* USER CODE BEGIN Init */
+
+  /* USER CODE END Init */
+
+  /* Configure the system clock */
+  SystemClock_Config();
+
+  /* USER CODE BEGIN SysInit */
+
+  /* USER CODE END SysInit */
+
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_USART2_UART_Init();
+  /* USER CODE BEGIN 2 */
+
+  /* USER CODE END 2 */
+
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
+  uint8_t turn_on[] = {0x7e, 0x00, 0x00, 0x02, 0x01, 0x03, 0xf9, 0x7e};
+  uint8_t read_sensor[] = {0x7e, 0x00, 0x03, 0x00, 0xfc, 0x7e};
+  // receive 47 bytes which is 40 byte data after 5 header bytes, and 2 extra bytes at end
+  uint8_t receive_data_raw[120]; // have extra space for byte stuffing
+  uint8_t receive_data_unbytestuffed[50]; 
+  uint8_t data_flip_endianness[40];
+  // uint8_t receive_buffer[1];
+  float pm_data[10];
+  char debug_string[200];
+
+  while (HAL_UART_Transmit(&huart2, turn_on, 8, 2000) != HAL_OK);
+  HAL_Delay(1000);
+
+  while (1)
+  {
+      /* USER CODE END WHILE */
+   HAL_StatusTypeDef tx_status;
+    while ( (tx_status = HAL_UART_Transmit(&huart2, read_sensor, 6, 2000) != HAL_OK));
+
+    /* Clear Overrun Error, Noise Error, Frame Error, and Parity Error flags */
+    __HAL_UART_CLEAR_PEFLAG(&huart2);
+    __HAL_UART_CLEAR_FEFLAG(&huart2);
+    __HAL_UART_CLEAR_NEFLAG(&huart2);
+    __HAL_UART_CLEAR_OREFLAG(&huart2);
+
+    /* Flush any leftover stale bytes out of the hardware register */
+    uint32_t dummy = huart2.Instance->DR; 
+    (void)dummy;
+    __HAL_UART_CLEAR_OREFLAG(&huart2); // clear error flag
+    const uint8_t START_STOP_BYTE= 0x7e;
+    // unsigned int start_byte_received = 0;
+    // int raw_index = 0;
+    HAL_StatusTypeDef rx_status;
+
+    // TODO ISSUE MIGHT BE TRYING RECEIVE 1 byte at a time, TRY TO RECEIVE 120, may get a HAL_TIMEOUT though
+    rx_status = HAL_UART_Receive(&huart2, receive_data_raw, 120, 2000);
+    if (rx_status != HAL_ERROR || rx_status != HAL_BUSY)
+    {
+      continue;
+    }
+
+    // while (raw_index < 500)
+    // {
+    //   rx_status = HAL_UART_Receive(&huart2, receive_buffer, 1, 2000) == HAL_OK;
+    //   if (rx_status == HAL_TIMEOUT)
+    //   {
+    //     continue;
+    //   }
+    //   if (start_byte_received && receive_buffer[0] != START_STOP_BYTE)
+    //   {
+    //     // save received data
+    //     receive_data_raw[raw_index++] = receive_buffer[0];
+    //     continue;
+    //   }
+    //   else if (start_byte_received && receive_buffer[0] == START_STOP_BYTE)
+    //   {
+    //      // add STOP byte and stop reading
+    //     receive_data_raw[raw_index] = receive_buffer[0];
+    //     break;
+    //   }
+    //   else if (!start_byte_received && receive_buffer[0] != START_STOP_BYTE)
+    //   {
+    //     // junk data, continue reading until find start byte
+    //     continue;
+    //   }
+    //   else if (!start_byte_received && receive_buffer[0] == START_STOP_BYTE )
+    //   {
+    //     // found start byte, can start receiving data
+    //     start_byte_received = 1;
+    //     receive_data_raw[raw_index++] = receive_buffer[0];
+    //     continue;
+    //   }
+    //   else
+    //   {
+    //     break; // error 
+    //   }
+    // }
+
+    if (receive_data_raw[0] != START_STOP_BYTE)
+    {
+      // error receiving data
+      continue; // restart loop
+    }
+
+    // find start of frame
+    uint8_t * frame_start = &receive_data_raw[0];
+    // data received now need to unbytestuff
+    // const int HEADER_OFFSET = 5; // first 5 bytes are header, data starts at index 5
+    uint8_t *curr_byte = frame_start + 1;
+    const uint8_t STUFFED_BYTE_MARKER = 0x7d;
+
+    int i = 0;
+    while (*curr_byte != START_STOP_BYTE && i < 120)  // checksum byte was added, remove at data conversion step
+    {
+      if (*curr_byte == STUFFED_BYTE_MARKER)
+      {
+        if (*(curr_byte+1) == 0x5e)
+        {
+          receive_data_unbytestuffed[i] = 0x7e;
+        }
+        else if (*(curr_byte+1) == 0x5d)
+        {
+          receive_data_unbytestuffed[i] = 0x7d;
+        }
+        else if (*(curr_byte+1) == 0x31)
+        {
+          receive_data_unbytestuffed[i] = 0x11;
+        } 
+        else if (*(curr_byte+1) == 0x33)
+        {
+          receive_data_unbytestuffed[i] = 0x13;
+        }
+        
+        // increment curr_byte by 2 to skip stuffed byte
+        curr_byte += 2;
+        i++;
+        continue;
+      }
+      // else, current byte is copied to array and i and curr_byte incremented
+      receive_data_unbytestuffed[i++] = *curr_byte++;
+    }
+    if (i == 120 && (*curr_byte != START_STOP_BYTE))
+    {
+      continue; // did not get end of frame properly
+    }
+
+      const int LENGTH_BYTE_CORRECT_SIZE = 0x28; // correct size must be 40 bytes
+      const int LENGTH_BYTE = 3; // position of length byte
+      if (receive_data_unbytestuffed[LENGTH_BYTE] !=  LENGTH_BYTE_CORRECT_SIZE)
+      {
+        continue; // restart loop
+      }
+
+
+      const int CHUNK_SIZE = 4;
+      const int ARRAY_SIZE = 40;
+      const int HEADER_OFFSET = 4;
+
+      for (int i = 0; i * CHUNK_SIZE < ARRAY_SIZE; i++)
+      {
+        curr_byte = &receive_data_unbytestuffed[i*CHUNK_SIZE + HEADER_OFFSET];
+        for (int j = 3, k = 0; j >= 0; j--, k++)
+        {
+          data_flip_endianness[j+(i*CHUNK_SIZE)] =*(curr_byte+k);
+        }
+      }
+
+      memcpy(pm_data, data_flip_endianness, sizeof(pm_data));
+
+      snprintf(debug_string, sizeof(debug_string),
+            "PM1.0=%.10f PM2.5=%.10f PM4.0=%.10f PM10=%.10f "
+            "NC0.5=%.4f NC1.0=%.10f NC2.5=%.10f NC4.0=%.10f "
+            "NC10=%.4f TPS=%.4f",
+            pm_data[0], pm_data[1], pm_data[2], pm_data[3],
+            pm_data[4], pm_data[5], pm_data[6], pm_data[7],
+            pm_data[8], pm_data[9]);
+  }
+
+
+
+
+  
+
+
+
+
+
+    /* USER CODE BEGIN 3 */
+  
+  /* USER CODE END 3 */
+}
+
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void SystemClock_Config(void)
+{
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+  /** Configure the main internal regulator output voltage
+  */
+  __HAL_RCC_PWR_CLK_ENABLE();
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+
+  /** Initializes the RCC Oscillators according to the specified parameters
+  * in the RCC_OscInitTypeDef structure.
+  */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 16;
+  RCC_OscInitStruct.PLL.PLLN = 336;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLQ = 2;
+  RCC_OscInitStruct.PLL.PLLR = 2;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Initializes the CPU, AHB and APB buses clocks
+  */
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_GPIO_Init(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  /* USER CODE BEGIN MX_GPIO_Init_1 */
+
+  /* USER CODE END MX_GPIO_Init_1 */
+
+  /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOH_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : B1_Pin */
+  GPIO_InitStruct.Pin = B1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LD2_Pin */
+  GPIO_InitStruct.Pin = LD2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+
+  /* USER CODE BEGIN MX_GPIO_Init_2 */
+
+  /* USER CODE END MX_GPIO_Init_2 */
+}
+
+/* USER CODE BEGIN 4 */
+
+/* USER CODE END 4 */
+
+/**
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
+void Error_Handler(void)
+{
+  /* USER CODE BEGIN Error_Handler_Debug */
+  /* User can add his own implementation to report the HAL error return state */
+  __disable_irq();
+  while (1)
+  {
+  }
+  /* USER CODE END Error_Handler_Debug */
+}
+#ifdef USE_FULL_ASSERT
+/**
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
+void assert_failed(uint8_t *file, uint32_t line)
+{
+  /* USER CODE BEGIN 6 */
+  /* User can add his own implementation to report the file name and line number,
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+  /* USER CODE END 6 */
+}
+#endif /* USE_FULL_ASSERT */

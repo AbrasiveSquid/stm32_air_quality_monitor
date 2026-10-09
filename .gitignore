@@ -1,0 +1,14 @@
+build
+mx.scratch
+.settings
+# Build directories
+Debug/
+Release/
+
+# Compiled output
+*.elf
+*.bin
+*.hex
+*.map
+*.o
+*.d
