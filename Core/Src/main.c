@@ -107,6 +107,7 @@ int main(void)
   uint8_t read_sensor[] = {0x7e, 0x00, 0x03, 0x00, 0xfc, 0x7e};
   // receive 47 bytes which is 40 byte data after 5 header bytes, and 2 extra bytes at end
   uint8_t receive_data_raw[120]; // have extra space for byte stuffing
+  uint8_t receive_buffer[1];
   uint8_t receive_data_unbytestuffed[50]; 
   uint8_t data_flip_endianness[40];
   // uint8_t receive_buffer[1];
@@ -137,8 +138,8 @@ int main(void)
     // int raw_index = 0;
     HAL_StatusTypeDef rx_status;
 
-    // TODO ISSUE MIGHT BE TRYING RECEIVE 1 byte at a time, TRY TO RECEIVE 120, may get a HAL_TIMEOUT though
-    rx_status = HAL_UART_Receive(&huart1, receive_data_raw, 120, 2000);
+    // TODO can receive one byte, take one byte at time until get end of frame
+    rx_status = HAL_UART_Receive(&huart1, receive_buffer, 1, 2000);
     if (rx_status != HAL_ERROR || rx_status != HAL_BUSY)
     {
       continue;
