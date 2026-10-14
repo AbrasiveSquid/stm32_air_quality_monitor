@@ -18,3 +18,13 @@ A record of the project's design decisions, firmware work, hardware bring-up, de
 
 **Next:** Validate a full SPS30 response and decode PM readings; then integrate the e-ink display and SCD41.
 
+## October 14 - SPS30 driver working
+- Able to receive PM measurements
+- Refactored user code into separate driver files (sps30.c and sps30.h)
+- Currently have functions for start, stop measurements, poll measurements, receive frames, unstuff bytes verify checksum, flip endianness, and an orchestrator function that calls all the functions to convert to pm data. 
+- Debugged a number of issues of off by one errors, and array indexing.
+
+Next: Test measurements of sensor in various conditions to ensure working.
+Test and add handling if sensor is disconnected.
+Update get_response_frame to number of bytes received not just 0/1
+
