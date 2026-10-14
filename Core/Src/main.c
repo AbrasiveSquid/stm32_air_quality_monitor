@@ -101,193 +101,52 @@ int main(void)
   MX_USART1_UART_Init();
 
   // uint8_t read_sensor[] = {0x7e, 0x00, 0x03, 0x00, 0xfc, 0x7e};
-  uint8_t stop_measurement[] = {0x7e, 0x00, 0x01, 0x00, 0xfe, 0x7e};
-  // receive 47 bytes which is 40 byte data after 5 header bytes, and 2 extra bytes at end
-  uint8_t receive_data_raw[200] = {0}; // have extra space for byte stuffing
-  // uint8_t receive_buffer[1];
-  uint8_t receive_data_unbytestuffed[50] = {0}; 
-  uint8_t data_flip_endianness[40] = {0};
+  // uint8_t stop_measurement[] = {0x7e, 0x00, 0x01, 0x00, 0xfe, 0x7e};
+  // // receive 47 bytes which is 40 byte data after 5 header bytes, and 2 extra bytes at end
+  // uint8_t receive_data_raw[200] = {0}; // have extra space for byte stuffing
+  // // uint8_t receive_buffer[1];
+  // uint8_t receive_data_unbytestuffed[50] = {0}; 
+  // uint8_t data_flip_endianness[40] = {0};
   // uint8_t receive_buffer[1];
   float pm_data[10] = {0};
   // char debug_string[200];
   // HAL_StatusTypeDef tx_status;
 
   int err_code;
-  uint8_t res_frame[7];
-  HAL_UART_Transmit(&huart1, stop_measurement, 6, 2000);
-  get_response_frame(huart1, res_frame, 7);
-  HAL_Delay(1000);
+  // HAL_UART_Transmit(&huart1, stop_measurement, 6, 2000);
+  stop_measurement(huart1);
+  HAL_Delay(2000);
 
 
   while (1)
   {
-  // start the measurement
-  if ((err_code = start_measurement(huart1)))
-  {
-    continue;
-  }
-
-  HAL_Delay(2000);
-    if ((err_code = poll_measurements(huart1)))
-  {
-    continue;
-  }
-
-    // while ( (tx_status = HAL_UART_Transmit(&huart1, read_sensor, 6, 2000) != HAL_OK));
-
-    // /* Clear Overrun Error, Noise Error, Frame Error, and Parity Error flags */
-    // __HAL_UART_CLEAR_PEFLAG(&huart1);
-    // __HAL_UART_CLEAR_FEFLAG(&huart1);
-    // __HAL_UART_CLEAR_NEFLAG(&huart1);
-    // __HAL_UART_CLEAR_OREFLAG(&huart1);
-
-    // /* Flush any leftover stale bytes out of the hardware register */
-    // uint32_t dummy = huart1.Instance->DR; 
-    // (void)dummy;
-    // __HAL_UART_CLEAR_OREFLAG(&huart1); // clear error flag
-    const uint8_t START_STOP_BYTE= 0x7e;
-    // unsigned int start_byte_received = 0;
-    // int raw_index = 0;
-    HAL_StatusTypeDef rx_status;
-
-    // can receive one byte, take one byte at time until get end of frame
-    int time_out_counter = 0;
-    uint8_t index = 0;
-    int start_frame = 0;
-    while (index < 200) {
-      rx_status = HAL_UART_Receive(&huart1,receive_data_raw + index, 1, 2000);
-      if (rx_status == HAL_ERROR || rx_status == HAL_BUSY) {
-        continue; // try again
-      }
-      if (rx_status == HAL_TIMEOUT)
-      {
-        if (time_out_counter == 5) {
-          break;
-        }
-        HAL_Delay(1000);
-        time_out_counter++;
-        continue;
-      }
-      if (!start_frame && receive_data_raw[index] == START_STOP_BYTE) {
-        // received byte to start receive frame
-        start_frame = 1;
-      }
-      else if (receive_data_raw[index] == START_STOP_BYTE)
-      {
-        // received end of frame byte
-        break;
-      }
-
-      index++; // increment index for next byte
-    }
-  
-    if (receive_data_raw[0] != START_STOP_BYTE)
+    // start the measurement
+    if ((err_code = start_measurement(huart1)))
     {
-      // error receiving data
-      continue; // restart loop
+      continue;
+    }
+
+    HAL_Delay(5000);
+      if ((err_code = poll_measurements(huart1)))
+    {
+      continue;
+    }
+
+    
+    err_code = get_pm_data(huart1, pm_data, 10);
+    if (err_code)
+    {
+      continue;
     }
 
     // turn off measurement
-    HAL_UART_Transmit(&huart1, stop_measurement, 6, 2000);
-
-    // find start of frame
-    uint8_t * frame_start = &receive_data_raw[0];
-    // data received now need to unbytestuff
-    // const int HEADER_OFFSET = 5; // first 5 bytes are header, data starts at index 5
-    uint8_t *curr_byte = frame_start + 1;
-    const uint8_t STUFFED_BYTE_MARKER = 0x7d;
-
-    uint8_t i = 0;
-    while (*curr_byte != START_STOP_BYTE && i < 120)  // checksum byte was added, remove at data conversion step
-    {
-      if (*curr_byte == STUFFED_BYTE_MARKER)
-      {
-        if (*(curr_byte+1) == 0x5e)
-        {
-          receive_data_unbytestuffed[i] = 0x7e;
-        }
-        else if (*(curr_byte+1) == 0x5d)
-        {
-          receive_data_unbytestuffed[i] = 0x7d;
-        }
-        else if (*(curr_byte+1) == 0x31)
-        {
-          receive_data_unbytestuffed[i] = 0x11;
-        } 
-        else if (*(curr_byte+1) == 0x33)
-        {
-          receive_data_unbytestuffed[i] = 0x13;
-        }
-        
-        // increment curr_byte by 2 to skip stuffed byte
-        curr_byte += 2;
-        i++;
-        continue;
-      }
-      // else, current byte is copied to array and i and curr_byte incremented
-      receive_data_unbytestuffed[i++] = *curr_byte++;
-    }
-
-    if (i == 120 && (*curr_byte != START_STOP_BYTE))
-    {
-      continue; // did not get end of frame properly
-    }
-
-    // verify checksum
-    const uint8_t CHECKSUM_BYTE = receive_data_unbytestuffed[i - 1];
-    int byte_sum = 0;
-    // to verify checksum, sum all bytes, take LSB of result and invert it
-    for (int j = 0; j < (i - 1); j++) // i - 1, sum should not include stop byte or checksum byte
-    {
-      byte_sum += receive_data_unbytestuffed[j];
-    }
-    // checksum byte must equal the invert of the byte sum
-    // cast byte_sum to uint8_t so its only LSB of the sum
-    uint8_t lsb_of_byte_sum = (uint8_t) byte_sum;
-    uint8_t invert_of_lsb_of_byte_sum = ~lsb_of_byte_sum;
-    if (invert_of_lsb_of_byte_sum != CHECKSUM_BYTE)
-    {
-      continue; // restart measurement loop
-    }
-    
-
-      const int LENGTH_BYTE_CORRECT_SIZE = 0x28; // correct size must be 40 bytes
-      const int LENGTH_BYTE = 3; // position of length byte
-      if (receive_data_unbytestuffed[LENGTH_BYTE] !=  LENGTH_BYTE_CORRECT_SIZE)
-      {
-        continue; // restart loop
-      }
-
-
-      const int CHUNK_SIZE = 4;
-      const int ARRAY_SIZE = 40;
-      const int HEADER_OFFSET = 4;
-
-      for (int i = 0; i * CHUNK_SIZE < ARRAY_SIZE; i++)
-      {
-        curr_byte = &receive_data_unbytestuffed[i*CHUNK_SIZE + HEADER_OFFSET];
-        for (int j = 3, k = 0; j >= 0; j--, k++)
-        {
-          data_flip_endianness[j+(i*CHUNK_SIZE)] =*(curr_byte+k);
-        }
-      }
-
-      memcpy(pm_data, data_flip_endianness, sizeof(pm_data));
+    stop_measurement(huart1);
+    HAL_Delay(5000);
   }
 
-
-
-
-  
-
-
-
-
-
-    /* USER CODE BEGIN 3 */
-  
-  /* USER CODE END 3 */
 }
+
+
 
 /**
   * @brief System Clock Configuration
