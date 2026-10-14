@@ -18,6 +18,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "sps30.h"
+
 #include "stm32f4xx_hal_def.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -103,7 +105,7 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint8_t turn_on[] = {0x7e, 0x00, 0x00, 0x02, 0x01, 0x03, 0xf9, 0x7e};
+  // uint8_t turn_on[] = {0x7e, 0x00, 0x00, 0x02, 0x01, 0x03, 0xf9, 0x7e};
   uint8_t read_sensor[] = {0x7e, 0x00, 0x03, 0x00, 0xfc, 0x7e};
   uint8_t stop_measurement[] = {0x7e, 0x00, 0x01, 0x00, 0xfe, 0x7e};
   // receive 47 bytes which is 40 byte data after 5 header bytes, and 2 extra bytes at end
@@ -113,21 +115,27 @@ int main(void)
   uint8_t data_flip_endianness[40];
   // uint8_t receive_buffer[1];
   float pm_data[10];
-  char debug_string[200];
+  // char debug_string[200];
   HAL_StatusTypeDef tx_status;
+
+  int err_code;
 
 
   while (1)
   {
-    while ((tx_status = HAL_UART_Transmit(&huart1, turn_on, 8, 2000)) != HAL_OK)
-   {  
-    HAL_Delay(1000);
+  //   while ((tx_status = HAL_UART_Transmit(&huart1, turn_on, 8, 2000)) != HAL_OK)
+  //  {  
+  //   HAL_Delay(1000);
 
-   }
-    HAL_Delay(1000);
+  //  }
+  //   HAL_Delay(1000);
 
+  // start the measurement
+  if ((err_code = start_measurement(huart1)))
+  {
+    continue;
+  }
 
-   HAL_StatusTypeDef tx_status;
     while ( (tx_status = HAL_UART_Transmit(&huart1, read_sensor, 6, 2000) != HAL_OK));
 
     /* Clear Overrun Error, Noise Error, Frame Error, and Parity Error flags */
