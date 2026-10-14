@@ -99,13 +99,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_USART1_UART_Init();
-  /* USER CODE BEGIN 2 */
 
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  // uint8_t turn_on[] = {0x7e, 0x00, 0x00, 0x02, 0x01, 0x03, 0xf9, 0x7e};
   uint8_t read_sensor[] = {0x7e, 0x00, 0x03, 0x00, 0xfc, 0x7e};
   uint8_t stop_measurement[] = {0x7e, 0x00, 0x01, 0x00, 0xfe, 0x7e};
   // receive 47 bytes which is 40 byte data after 5 header bytes, and 2 extra bytes at end
@@ -123,26 +117,24 @@ int main(void)
 
   while (1)
   {
-  //   while ((tx_status = HAL_UART_Transmit(&huart1, turn_on, 8, 2000)) != HAL_OK)
-  //  {  
-  //   HAL_Delay(1000);
-
-  //  }
-  //   HAL_Delay(1000);
-
   // start the measurement
   if ((err_code = start_measurement(huart1)))
   {
     continue;
   }
 
+    if ((err_code = poll_measurements(huart1)))
+  {
+    continue;
+  }
+
     while ( (tx_status = HAL_UART_Transmit(&huart1, read_sensor, 6, 2000) != HAL_OK));
 
-    /* Clear Overrun Error, Noise Error, Frame Error, and Parity Error flags */
-    __HAL_UART_CLEAR_PEFLAG(&huart1);
-    __HAL_UART_CLEAR_FEFLAG(&huart1);
-    __HAL_UART_CLEAR_NEFLAG(&huart1);
-    __HAL_UART_CLEAR_OREFLAG(&huart1);
+    // /* Clear Overrun Error, Noise Error, Frame Error, and Parity Error flags */
+    // __HAL_UART_CLEAR_PEFLAG(&huart1);
+    // __HAL_UART_CLEAR_FEFLAG(&huart1);
+    // __HAL_UART_CLEAR_NEFLAG(&huart1);
+    // __HAL_UART_CLEAR_OREFLAG(&huart1);
 
     /* Flush any leftover stale bytes out of the hardware register */
     uint32_t dummy = huart1.Instance->DR; 
