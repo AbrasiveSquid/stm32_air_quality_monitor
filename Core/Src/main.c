@@ -100,19 +100,23 @@ int main(void)
   MX_USART2_UART_Init();
   MX_USART1_UART_Init();
 
-  uint8_t read_sensor[] = {0x7e, 0x00, 0x03, 0x00, 0xfc, 0x7e};
+  // uint8_t read_sensor[] = {0x7e, 0x00, 0x03, 0x00, 0xfc, 0x7e};
   uint8_t stop_measurement[] = {0x7e, 0x00, 0x01, 0x00, 0xfe, 0x7e};
   // receive 47 bytes which is 40 byte data after 5 header bytes, and 2 extra bytes at end
   uint8_t receive_data_raw[200] = {0}; // have extra space for byte stuffing
   // uint8_t receive_buffer[1];
-  uint8_t receive_data_unbytestuffed[50]; 
-  uint8_t data_flip_endianness[40];
+  uint8_t receive_data_unbytestuffed[50] = {0}; 
+  uint8_t data_flip_endianness[40] = {0};
   // uint8_t receive_buffer[1];
-  float pm_data[10];
+  float pm_data[10] = {0};
   // char debug_string[200];
-  HAL_StatusTypeDef tx_status;
+  // HAL_StatusTypeDef tx_status;
 
   int err_code;
+  uint8_t res_frame[7];
+  HAL_UART_Transmit(&huart1, stop_measurement, 6, 2000);
+  get_response_frame(huart1, res_frame, 7);
+  HAL_Delay(1000);
 
 
   while (1)
@@ -123,12 +127,13 @@ int main(void)
     continue;
   }
 
+  HAL_Delay(2000);
     if ((err_code = poll_measurements(huart1)))
   {
     continue;
   }
 
-    while ( (tx_status = HAL_UART_Transmit(&huart1, read_sensor, 6, 2000) != HAL_OK));
+    // while ( (tx_status = HAL_UART_Transmit(&huart1, read_sensor, 6, 2000) != HAL_OK));
 
     // /* Clear Overrun Error, Noise Error, Frame Error, and Parity Error flags */
     // __HAL_UART_CLEAR_PEFLAG(&huart1);
@@ -136,10 +141,10 @@ int main(void)
     // __HAL_UART_CLEAR_NEFLAG(&huart1);
     // __HAL_UART_CLEAR_OREFLAG(&huart1);
 
-    /* Flush any leftover stale bytes out of the hardware register */
-    uint32_t dummy = huart1.Instance->DR; 
-    (void)dummy;
-    __HAL_UART_CLEAR_OREFLAG(&huart1); // clear error flag
+    // /* Flush any leftover stale bytes out of the hardware register */
+    // uint32_t dummy = huart1.Instance->DR; 
+    // (void)dummy;
+    // __HAL_UART_CLEAR_OREFLAG(&huart1); // clear error flag
     const uint8_t START_STOP_BYTE= 0x7e;
     // unsigned int start_byte_received = 0;
     // int raw_index = 0;
