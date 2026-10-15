@@ -23,6 +23,7 @@ A record of the project's design decisions, firmware work, hardware bring-up, de
 - Refactored user code into separate driver files (sps30.c and sps30.h)
 - Currently have functions for start, stop measurements, poll measurements, receive frames, unstuff bytes verify checksum, flip endianness, and an orchestrator function that calls all the functions to convert to pm data. 
 - Debugged a number of issues of off by one errors, and array indexing.
+- Tested sensor next to a lit candle before and after blowing it out. Observed substantial increase in PM concentration <10 µg/m3 to >1000 µg/m3 after blowing it out.
 
 Next: Test measurements of sensor in various conditions to ensure working.
 Test and add handling if sensor is disconnected.

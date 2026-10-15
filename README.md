@@ -2,14 +2,14 @@
 
 An embedded air quality monitor built around an **STM32 NUCLEO-F446RE** development board. The goal is a standalone device that measures airborne particulate matter (PM) and carbon dioxide (CO₂), displays the readings on an e-ink screen, and fits into an enclosure.
 
-**Status:** Work in progress. The current focus is communicating reliably with the SPS30 particulate matter sensor over UART.
+**Status:** SPS30 reliably working and validating checksum after receiving measurements. Tested with a candle and observed expected increases.
 
 ## Hardware
 
 | Component | Role | Interface | Status |
 | --- | --- | --- | --- |
 | STM32 NUCLEO-F446RE | Microcontroller development board | — | Firmware builds and runs |
-| Sensirion SPS30 | PM1.0, PM2.5, PM4, and PM10 measurements | UART | Bring-up and debugging |
+| Sensirion SPS30 | PM1.0, PM2.5, PM4, and PM10 measurements | UART | Working — measurements decoded and checksum validated |
 | Sensirion SCD41 | CO₂ measurements | I²C | Planned |
 | Waveshare 2.13-inch e-Paper HAT V4 (black/white) | Local display | SPI | Planned |
 | Perfboard and enclosure | Permanent assembly | — | Planned |
@@ -25,12 +25,37 @@ An embedded air quality monitor built around an **STM32 NUCLEO-F446RE** developm
 - [x] Set up the STM32 development environment and build the firmware.
 - [x] Connect the SPS30 to the Nucleo and confirm that its fan operates.
 - [x] Debug UART transmissions and observe an initial receive response.
-- [ ] Receive and validate a complete SPS30 response frame.
-- [ ] Decode and report particulate matter measurements.
+- [x] Implement frame reception, byte unstuffing, and checksum validation.
+- [x] Decode the SPS30 measurements into floating-point values.
 - [ ] Connect the e-ink display and show sensor readings.
 - [ ] Format readings for an organized display.
 - [ ] Integrate the SCD41 CO₂ sensor.
 - [ ] Move the wiring to perfboard and mount the system in an enclosure.
+
+## SPS30 Testing
+
+Tested the SPS30 under three conditions: ambient air, near a lit candle, and after extinguishing the candle. The extinguished candle produced a pronounced spike in particulate readings, with PM2.5 reaching approximately 1,530 µg/m³. This is a functional test of sensor responsiveness, not a calibration test.
+
+| Ambient air | Lit candle | Extinguished candle |
+|:---:|:---:|:---:|
+| <img src="docs/images/pmdata_desk.png" width="220"> | <img src="docs/images/pmdata_lit_candle.png" width="220"> | <img src="docs/images/pmdata_blow_out_candle.png" width="220"> |
+
+### Measurement Data
+
+The SPS30 returns 10 floating-point measurements, stored in the `pm_data` array.
+
+| Index | Measurement | Unit |
+|---|---|---|
+| 0 | PM1.0 mass concentration | µg/m³ |
+| 1 | PM2.5 mass concentration | µg/m³ |
+| 2 | PM4.0 mass concentration | µg/m³ |
+| 3 | PM10 mass concentration | µg/m³ |
+| 4 | NC0.5 particle concentration | particles/cm³ |
+| 5 | NC1.0 particle concentration | particles/cm³ |
+| 6 | NC2.5 particle concentration | particles/cm³ |
+| 7 | NC4.0 particle concentration | particles/cm³ |
+| 8 | NC10 particle concentration | particles/cm³ |
+| 9 | Typical particle size | µm |
 
 ## SPS30 UART prototype wiring
 
@@ -46,13 +71,11 @@ Current test configuration using **USART1** on the NUCLEO-F446RE:
 
 The SPS30 uses Sensirion's SHDLC protocol over UART. The receive logic must identify complete frames and validate them before treating the payload as sensor data.
 
-## Planned operation
+## Operation
 
-1. Initialize the STM32 peripherals and connected devices.
-2. Start and read particulate measurements from the SPS30.
-3. Read CO₂ measurements from the SCD41.
-4. Update the e-ink display with the latest available readings.
-5. Handle communication failures without requiring a manual reset whenever possible.
+**Implemented**: The application starts SPS30 measurements, requests data over UART, validates and decodes the response, and can stop measurements. The driver exposes the measurements to the calling code.
+
+**Planned**: Update the e-ink display with current PM and CO₂ measurements, improve recovery from communication failures, and assemble the device in an enclosure.
 
 ## Build and development
 
