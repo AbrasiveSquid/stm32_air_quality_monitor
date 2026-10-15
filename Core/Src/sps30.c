@@ -127,9 +127,6 @@ int get_response_frame(UART_HandleTypeDef huart, uint8_t frame[], int frame_len)
     int time_out_counter = 0;
     int start_frame = 0; // boolean flag to check that first byte is the START_STOP_BYTE
 
-
-
-
     while (i < frame_len)
     {
         // receive 1 byte at a time
@@ -139,7 +136,7 @@ int get_response_frame(UART_HandleTypeDef huart, uint8_t frame[], int frame_len)
         if (rx_status == HAL_TIMEOUT)
         {
             if(time_out_counter == 5) {
-                return 1; // return error code
+                return 0; // return error code
             }
             HAL_Delay(1000); // wait 1 second
             time_out_counter++;
@@ -163,10 +160,10 @@ int get_response_frame(UART_HandleTypeDef huart, uint8_t frame[], int frame_len)
     // check that last byte received was stop byte
     if (frame[i] != START_STOP_BYTE)
     {
-        return 1; // if not stop byte, error
+        return 0; // if not stop byte, error 
     }
 
-    return 0; // success
+    return i; // success
 
 }
 
@@ -175,12 +172,15 @@ int get_pm_data(UART_HandleTypeDef uart, float data[], int data_len)
 {
     int raw_buff_len = 262;
     uint8_t raw_buff[raw_buff_len];
+    int err; // used for error codes from function return values
 
-    int err = get_response_frame(uart, raw_buff, raw_buff_len);
-    if (err)
+    int bytes_received = get_response_frame(uart, raw_buff, raw_buff_len);
+    if (!bytes_received)
     {
         return 1;
     }
+
+    // raw_buff starts and ends with 0x7e start/stop byte as verified in get_response_frame
 
     // unpack the bytes
     int unstuffed_bytes_buff_len = 262;

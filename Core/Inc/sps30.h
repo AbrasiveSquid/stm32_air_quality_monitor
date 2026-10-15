@@ -70,8 +70,7 @@ int poll_measurements(UART_HandleTypeDef huart);
 
     Returns:
         int:
-            0 if success
-            1 if any errors
+           the number of bytes received into the frame, or if there is an error returns 0 bytes
 */
 int get_response_frame(UART_HandleTypeDef huart, uint8_t frame[], int frame_len);
 
