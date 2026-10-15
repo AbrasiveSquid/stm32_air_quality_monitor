@@ -21,10 +21,10 @@ typedef struct
 
     Returns:
         int:
-            0 if success
-            1 if any errors
+            HAL_OK if success
+            HAL_ERROR if any errors
 */
-int start_measurement(UART_HandleTypeDef huart);
+HAL_StatusTypeDef start_measurement(UART_HandleTypeDef huart);
 
 /*
     stop measuring data
@@ -35,10 +35,10 @@ int start_measurement(UART_HandleTypeDef huart);
 
     Returns:
         int:
-            0 if success
-            1 if any errors
+            HAL_OK if success
+            HAL_ERROR if any errors
 */
-int stop_measurement(UART_HandleTypeDef huart);
+HAL_StatusTypeDef stop_measurement(UART_HandleTypeDef huart);
 
 /*
     Check for new measurements, need to send this command before receiving
@@ -49,10 +49,10 @@ int stop_measurement(UART_HandleTypeDef huart);
 
     Returns:
         int:
-            0 if success
-            1 if any errors
+            HAL_OK if success
+            HAL_ERROR if any errors
 */
-int poll_measurements(UART_HandleTypeDef huart);
+HAL_StatusTypeDef poll_measurements(UART_HandleTypeDef huart);
 
 
 /*
@@ -70,9 +70,32 @@ int poll_measurements(UART_HandleTypeDef huart);
 
     Returns:
         int:
-           the number of bytes received into the frame, or if there is an error returns 0 bytes
+           > 0, the number of bytes received into the frame
+           0, HAL_TIMEOUT, no valid frame received
+           -1 HAL_BUSY
+           -2 HAL_ERROR
+
 */
 int get_response_frame(UART_HandleTypeDef huart, uint8_t frame[], int frame_len);
+
+/*
+    Interprets err_code and returns the proper HAL_StatusTypeDef
+
+    err_code            HAL_StatusTypeDef
+    0                   HAL_TIMEOUT
+    -1                  HAL_BUSY
+    -2                  HAL_ERROR
+
+    Parameters:
+        err_code: int
+             a 0 or negative integer value
+
+    Returns:
+        HAL_StatusTypeDef
+*/
+HAL_StatusTypeDef handle_error_codes(int err_code);
+
+
 
 /*
     Handles getting the measured data from the sensor, and converting the raw bytes
@@ -109,7 +132,9 @@ int get_response_frame(UART_HandleTypeDef huart, uint8_t frame[], int frame_len)
     Returns:
         int:
             0 if success
-            1 if any errors
+            1 for HAL_TIMEOUT
+            2 for HAL_BUSY
+            3 for HAL_ERROR
 */
 int get_pm_data(UART_HandleTypeDef uart, float data[], int data_len);
 
