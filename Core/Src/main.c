@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "sps30.h"
+#include "air_quality.h"
 #include <stdbool.h>
 
 #include "stm32f4xx_hal_def.h"
@@ -114,71 +115,82 @@ int main(void)
   // HAL_StatusTypeDef tx_status;
 
   int return_code;
-  int stop_failure_count = 0;
-  int failed_measurements = 0;
+  // int stop_failure_count = 0;
+  // int failed_measurements = 0;
   // HAL_UART_Transmit(&huart1, stop_measurement, 6, 2000);
 
-  bool cont_measurements = false;
-  bool stop_failed = false;
-
+  // bool cont_measurements = false;
+  // bool stop_failed = false;
+  // TODO NEED TO ADD DEVICE RESET COMMAND
+  HAL_StatusTypeDef recovery_status = stop_measurement(huart1);
   while (1)
   {
-    // start the measurement
-    if ((return_code = start_measurement(huart1)) != HAL_OK)
-    {
-      cont_measurements = false; // if error code flip flag so nothing else runs
-    }
-    else 
-    {
-      cont_measurements = true;
-    }
-
-    HAL_Delay(5000);
-
-    if (cont_measurements)
-    {
-      if ((return_code = poll_measurements(huart1)) != HAL_OK)
-      { 
-        cont_measurements = false; // if error code flip flag so nothing else runs
-      }
-    }
     
 
-    if (cont_measurements)
-    {
-      return_code = get_pm_data(huart1, pm_data, 10);
-      if (return_code == HAL_OK)
-      {
-        // once screen hooked up if no err_code will update screen
+    return_code = sample_pm_data(huart1, pm_data, 10);
 
-      }
-      else 
-      {
-        cont_measurements = false; // if error code flip flag so nothing else runs
-      }
-    }
-   
-
-    // turn off measurement
-    return_code = stop_measurement(huart1);
     if (return_code != HAL_OK)
     {
-      stop_failed = true;
+      HAL_Delay(5000);
     }
-    else
-    {
-      stop_failed = false;
-    }
+    // start the measurement
+    // if ((return_code = start_measurement(huart1)) != HAL_OK)
+    // {
+    //   cont_measurements = false; // if error code flip flag so nothing else runs
+    // }
+    // else 
+    // {
+    //   cont_measurements = true;
+    // }
 
-    if (stop_failed)
-    {
-      stop_failure_count++;
-    }
-    if (!cont_measurements) 
-    {
-      failed_measurements++;
-    }
-    HAL_Delay(5000);
+    // HAL_Delay(5000);
+
+    // if (cont_measurements)
+    // {
+    //   // wait 30 seconds to stabilize
+
+    //   if ((return_code = poll_measurements(huart1)) != HAL_OK)
+    //   { 
+    //     cont_measurements = false; // if error code flip flag so nothing else runs
+    //   }
+    // }
+    
+
+    // if (cont_measurements)
+    // {
+    //   return_code = get_pm_data(huart1, pm_data, 10);
+    //   if (return_code == HAL_OK)
+    //   {
+    //     // once screen hooked up if no err_code will update screen
+
+    //   }
+    //   else 
+    //   {
+    //     cont_measurements = false; // if error code flip flag so nothing else runs
+    //   }
+    // }
+   
+
+    // // turn off measurement
+    // return_code = stop_measurement(huart1);
+    // if (return_code != HAL_OK)
+    // {
+    //   stop_failed = true;
+    // }
+    // else
+    // {
+    //   stop_failed = false;
+    // }
+
+    // if (stop_failed)
+    // {
+    //   stop_failure_count++;
+    // }
+    // if (!cont_measurements) 
+    // {
+    //   failed_measurements++;
+    // }
+    // HAL_Delay(5000);
   }
 
 }

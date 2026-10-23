@@ -1,10 +1,11 @@
 /* Header file for the driver for the sensirion sps30 PM sensor for an stm32 nucelo*/
 
 #ifndef SPS30_H
-#define SPS30_h
+#define SPS30_H
 
 #include "stm32f4xx_hal.h"
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef struct 
 {
@@ -235,5 +236,4 @@ int verify_checksum(uint8_t frame[], int frame_len);
 */
 int flip_endianess(uint8_t frame[], int frame_len, 
     uint8_t endian_flip_frame[], int flip_frame_len, int chunk_size);
-
 #endif
