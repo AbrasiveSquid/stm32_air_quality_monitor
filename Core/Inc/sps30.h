@@ -130,13 +130,9 @@ HAL_StatusTypeDef handle_error_codes(int err_code);
             the length of the array
 
     Returns:
-        int:
-            0 if success
-            1 for HAL_TIMEOUT
-            2 for HAL_BUSY
-            3 for HAL_ERROR
+        HAL_StatusTypeDef
 */
-int get_pm_data(UART_HandleTypeDef uart, float data[], int data_len);
+HAL_StatusTypeDef get_pm_data(UART_HandleTypeDef uart, float data[], int data_len);
 
 /*
     Unstuffs the bytes in frame with the exception of the start and stop if the following

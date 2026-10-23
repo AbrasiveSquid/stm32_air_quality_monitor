@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "sps30.h"
+#include <stdbool.h>
 
 #include "stm32f4xx_hal_def.h"
 #include <stdint.h>
@@ -112,35 +113,71 @@ int main(void)
   // char debug_string[200];
   // HAL_StatusTypeDef tx_status;
 
-  int err_code;
+  int return_code;
+  int stop_failure_count = 0;
+  int failed_measurements = 0;
   // HAL_UART_Transmit(&huart1, stop_measurement, 6, 2000);
-  stop_measurement(huart1);
-  HAL_Delay(2000);
 
+  bool cont_measurements = false;
+  bool stop_failed = false;
 
   while (1)
   {
     // start the measurement
-    if ((err_code = start_measurement(huart1)))
+    if ((return_code = start_measurement(huart1)) != HAL_OK)
     {
-      continue;
+      cont_measurements = false; // if error code flip flag so nothing else runs
+    }
+    else 
+    {
+      cont_measurements = true;
     }
 
     HAL_Delay(5000);
-      if ((err_code = poll_measurements(huart1)))
-    {
-      continue;
-    }
 
-    
-    err_code = get_pm_data(huart1, pm_data, 10);
-    if (err_code)
+    if (cont_measurements)
     {
-      continue;
+      if ((return_code = poll_measurements(huart1)) != HAL_OK)
+      { 
+        cont_measurements = false; // if error code flip flag so nothing else runs
+      }
     }
+    
+
+    if (cont_measurements)
+    {
+      return_code = get_pm_data(huart1, pm_data, 10);
+      if (return_code == HAL_OK)
+      {
+        // once screen hooked up if no err_code will update screen
+
+      }
+      else 
+      {
+        cont_measurements = false; // if error code flip flag so nothing else runs
+      }
+    }
+   
 
     // turn off measurement
-    stop_measurement(huart1);
+    return_code = stop_measurement(huart1);
+    if (return_code != HAL_OK)
+    {
+      stop_failed = true;
+    }
+    else
+    {
+      stop_failed = false;
+    }
+
+    if (stop_failed)
+    {
+      stop_failure_count++;
+    }
+    if (!cont_measurements) 
+    {
+      failed_measurements++;
+    }
     HAL_Delay(5000);
   }
 

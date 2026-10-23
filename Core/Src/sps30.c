@@ -40,10 +40,18 @@ HAL_StatusTypeDef start_measurement(UART_HandleTypeDef huart)
 
     int bytes_received = get_response_frame(huart, response_frame, len_response_frame);
     const uint8_t EMPTY_RESPONSE_FRAME[] = {0x7e, 0x00, 0x00, 0x00, 0x00, 0xff, 0x7e};
+    const int EMPTY_RESPONSE_FRAME_LEN = 7;
 
-    if (bytes_received < 1)
+    // Preserve the original communication error
+    if (bytes_received <= 0)
     {
         return handle_error_codes(bytes_received);
+    }
+
+    // Reject a response with an unexpected length
+    if (bytes_received != EMPTY_RESPONSE_FRAME_LEN)
+    {
+        return HAL_ERROR;
     }
 
     // response frame must match empty response frame
@@ -108,13 +116,21 @@ HAL_StatusTypeDef stop_measurement(UART_HandleTypeDef huart)
     // get response frame
     int len_response_frame = 7;
     uint8_t response_frame[len_response_frame];
+    const int EMPTY_RESPONSE_FRAME_LEN = 7;
 
     int bytes_received = get_response_frame(huart, response_frame, len_response_frame);
     const uint8_t EMPTY_RESPONSE_FRAME[] = {0x7e, 0x00, 0x01, 0x00, 0x00, 0xfe, 0x7e};
 
-       if (bytes_received < 1)
+    // Preserve the original communication error
+    if (bytes_received <= 0)
     {
         return handle_error_codes(bytes_received);
+    }
+
+    // Reject a response with an unexpected length
+    if (bytes_received != EMPTY_RESPONSE_FRAME_LEN)
+    {
+        return HAL_ERROR;
     }
 
     // response frame must match empty response frame
@@ -188,7 +204,7 @@ int get_response_frame(UART_HandleTypeDef huart, uint8_t frame[], int frame_len)
             }
             else 
             {
-                return HAL_TIMEOUT;
+                return 0; // HAL_TIMEOUT
             }
         }
         
@@ -217,7 +233,7 @@ int get_response_frame(UART_HandleTypeDef huart, uint8_t frame[], int frame_len)
     }
 
     // check that last byte received was stop byte
-    if (frame[i] != START_STOP_BYTE)
+    if (i >= frame_len || frame[i] != START_STOP_BYTE)
     {
         return 0; // if not stop byte, error 
     }
@@ -226,8 +242,7 @@ int get_response_frame(UART_HandleTypeDef huart, uint8_t frame[], int frame_len)
 
 }
 
-
-int get_pm_data(UART_HandleTypeDef uart, float data[], int data_len)
+HAL_StatusTypeDef get_pm_data(UART_HandleTypeDef uart, float data[], int data_len)
 {
     int raw_buff_len = 262;
     uint8_t raw_buff[raw_buff_len];
@@ -243,28 +258,32 @@ int get_pm_data(UART_HandleTypeDef uart, float data[], int data_len)
     // raw_buff starts and ends with 0x7e start/stop byte as verified in get_response_frame
 
     // unpack the bytes
-    int unstuffed_bytes_buff_len = 262;
+    int unstuffed_bytes_buff_len = bytes_received;
     uint8_t unstuffed_bytes_buff[unstuffed_bytes_buff_len];
     UnstuffedReturn unstuff_return = unstuff_bytes(raw_buff, unstuffed_bytes_buff, unstuffed_bytes_buff_len );
     
     // check for error
     if (unstuff_return.err_code)
     {
-        return 1;
+        return handle_error_codes(-2); // for HAL_ERROR
     }
 
     // verify checksum
     int checksum = verify_checksum(unstuffed_bytes_buff, unstuff_return.array_len);
     if (!checksum) {
-        return 1; // checksum is invalid
+        // checksum is invalid
+        return handle_error_codes(-2); // for HAL_ERROR
     }
 
     // check that the number of bytes in data is correct
     const int LENGTH_BYTE = 4; // position of length byte
     const int LENGTH_BYTE_CORRECT_SIZE = 0x28; // correct size must be 40 bytes for pm data
-    if (unstuffed_bytes_buff[LENGTH_BYTE] !=  LENGTH_BYTE_CORRECT_SIZE) 
+    const int FULL_ARRAY_CORRECT_LEN = 47;
+    if (unstuff_return.array_len != FULL_ARRAY_CORRECT_LEN
+        || unstuffed_bytes_buff[LENGTH_BYTE] !=  LENGTH_BYTE_CORRECT_SIZE) 
     {
-        return 1;
+        // bytes not correct size
+        return handle_error_codes(-2); // for HAL_ERROR
     }
 
     // flip endianness
@@ -274,7 +293,9 @@ int get_pm_data(UART_HandleTypeDef uart, float data[], int data_len)
 
     if (data_len != (ARRAY_SIZE/4))
     {
-        return 1; // the received data will not fit inside data array
+        // the received data will not fit inside data array
+        return handle_error_codes(-2); // for HAL_ERROR
+
     }
     uint8_t data_flip_endianess[ARRAY_SIZE];
     err =  flip_endianess(unstuffed_bytes_buff + HEADER_OFFSET, unstuff_return.array_len,
@@ -282,13 +303,14 @@ int get_pm_data(UART_HandleTypeDef uart, float data[], int data_len)
 
     if (err)
     {
-        return 1;
+        // cannot flip endianness
+        return handle_error_codes(-2); // for HAL_ERROR
     }
 
     // copy byte for byte into data, which will present data as floats
     memcpy(data, data_flip_endianess, ARRAY_SIZE);
 
-    return 0; // success
+    return HAL_OK; // success
 }
 
 UnstuffedReturn unstuff_bytes(uint8_t frame[], uint8_t unstuffed_frame[], int frame_len)
@@ -310,29 +332,35 @@ UnstuffedReturn unstuff_bytes(uint8_t frame[], uint8_t unstuffed_frame[], int fr
 
     // increment curr_byte to next byte in frame
     curr_byte++;
-    int i = 1;
-    while (*curr_byte != START_STOP_BYTE && i < frame_len)
+    int i = 1; // index for new frame
+    int j = 1; // index for old frame
+    while (j < frame_len &&  *curr_byte != START_STOP_BYTE)
     {
 
         // check for stuffed byte
         if (*curr_byte == STUFFED_BYTE_MARKER)
         {
+            if (j+1 >= frame_len) // ensure curr_byte + 1 still within frame buffer
+            {
+                unstuffed_return.err_code = 1;
+                return unstuffed_return;
+            }
             // if stuffed byte, unstuff it
             if (*(curr_byte+1) == 0x5e)
             {
-            unstuffed_frame[i] = 0x7e;
+                unstuffed_frame[i] = 0x7e;
             }
             else if (*(curr_byte+1) == 0x5d)
             {
-            unstuffed_frame[i] = 0x7d;
+                unstuffed_frame[i] = 0x7d;
             }
             else if (*(curr_byte+1) == 0x31)
             {
-            unstuffed_frame[i] = 0x11;
+                unstuffed_frame[i] = 0x11;
             } 
             else if (*(curr_byte+1) == 0x33)
             {
-            unstuffed_frame[i] = 0x13;
+                unstuffed_frame[i] = 0x13;
             }
             else 
             {
@@ -344,15 +372,17 @@ UnstuffedReturn unstuff_bytes(uint8_t frame[], uint8_t unstuffed_frame[], int fr
             // increment by 2 to skip stuffed byte
             curr_byte += 2;
             i++;
+            j+=2;
             continue;
         }
 
         // otherwise copy byte over and increment i and curr_byte
         unstuffed_frame[i++] = *curr_byte++;
+        j++;
     }
 
     // check that final byte is end of frame and copy it
-    if (*curr_byte == START_STOP_BYTE)
+    if ( j < frame_len && *curr_byte == START_STOP_BYTE)
     {
         unstuffed_frame[i++] = *curr_byte; // increment i
     }
