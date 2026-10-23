@@ -53,7 +53,7 @@ HAL_StatusTypeDef sample_pm_data(UART_HandleTypeDef uart, float data[], int data
     //   }
     }
     // turn off measurement
-    bool stop_failed = false;
+unter     bool stop_failed = false;
     int stop_failure_count = 0; // doesnt do anythingyet
     return_code = stop_measurement(uart);
     if (return_code != HAL_OK)

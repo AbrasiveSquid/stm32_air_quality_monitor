@@ -25,7 +25,13 @@ A record of the project's design decisions, firmware work, hardware bring-up, de
 - Debugged a number of issues of off by one errors, and array indexing.
 - Tested sensor next to a lit candle before and after blowing it out. Observed substantial increase in PM concentration <10 µg/m3 to >1000 µg/m3 after blowing it out.
 
-Next: Test measurements of sensor in various conditions to ensure working.
-Test and add handling if sensor is disconnected.
-Update get_response_frame to number of bytes received not just 0/1
+## October 23 — SPS30 error handling and sampling
 
+- Improved SPS30 driver error handling, including UART timeout retries, buffer bounds checking, response validation, and error propagation.
+- Tested three consecutive measurement cycles successfully with no reported errors.
+- Created `air_quality.c` and `air_quality.h` to separate application-level sampling from the SPS30 driver.
+- Implemented initial 30-second stabilization and 30-sample averaging logic.
+- Identified startup state issue: SPS30 may remain in Measurement-Mode after STM32 debugger resets, causing error `0x43`.
+- Confirmed that sending a stop command restores the sensor to Idle-Mode.
+
+**Next:** Implement SPS30 reset command for reliable startup, finish testing averaged measurements, and integrate the e-paper display and SCD41.
