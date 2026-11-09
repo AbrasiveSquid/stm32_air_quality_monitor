@@ -16,8 +16,6 @@ A record of the project's design decisions, firmware work, hardware bring-up, de
 - Had a wire issue and took a while to debug a bad wire. After switching wires, received 0x7E, but still need to validate a complete response frame.
 - Got the sensor fan running and received `0x7E` (SHDLC frame delimiter). A complete valid response is still unconfirmed.
 
-**Next:** Validate a full SPS30 response and decode PM readings; then integrate the e-ink display and SCD41.
-
 ## October 14 - SPS30 driver working
 - Able to receive PM measurements
 - Refactored user code into separate driver files (sps30.c and sps30.h)
@@ -38,3 +36,6 @@ A record of the project's design decisions, firmware work, hardware bring-up, de
 ## November 9 - Refactoring SPS30 driver and device reset
 - Added reset command to ensure SPS30 can receive other commands.
 - Refactored repeated logic out of function that commands as frames
+- tested consecutive 30-second averaging cycles for pm measurements
+- Improved error handling
+- added 5-minute sampling intervals using HAL_GetTick()
