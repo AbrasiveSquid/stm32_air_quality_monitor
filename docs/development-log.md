@@ -34,4 +34,7 @@ A record of the project's design decisions, firmware work, hardware bring-up, de
 - Identified startup state issue: SPS30 may remain in Measurement-Mode after STM32 debugger resets, causing error `0x43`.
 - Confirmed that sending a stop command restores the sensor to Idle-Mode.
 
-**Next:** Implement SPS30 reset command for reliable startup, finish testing averaged measurements, and integrate the e-paper display and SCD41.
+
+## November 9 - Refactoring SPS30 driver and device reset
+- Added reset command to ensure SPS30 can receive other commands.
+- Refactored repeated logic out of function that commands as frames
