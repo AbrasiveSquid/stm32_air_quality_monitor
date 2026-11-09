@@ -1,25 +1,24 @@
 #include "air_quality.h"
+#include "sps30.h"
 #include "stm32f4xx_hal_def.h"
 
 HAL_StatusTypeDef sample_pm_data(UART_HandleTypeDef uart, float data[], int data_len)
 {
-    if (data_len < 10)
+    if (data_len < 10) // data array not long enough to save collected data
     {
         return HAL_ERROR;
     }
-    int return_code;
-    const int STABILIZATION_TIME_IN_MS = 30000;
 
+    // start the measurements
+    HAL_StatusTypeDef return_code;
     if ((return_code = start_measurement(uart)) != HAL_OK)
     {
-    //   cont_measurements = false; // if error code flip flag so nothing else runs
-      return HAL_ERROR;
+      return return_code;
     }
-    else 
-    {
-        // wait 30 seconds to stablize
-        HAL_Delay(STABILIZATION_TIME_IN_MS);
-    }
+  
+    // wait 30 seconds to stablize
+    const int STABILIZATION_TIME_IN_MS = 30000;
+    HAL_Delay(STABILIZATION_TIME_IN_MS);
 
     // setup variables needed for 30 sampling runs
     const int PM_DATA_LEN = 10;
@@ -47,33 +46,19 @@ HAL_StatusTypeDef sample_pm_data(UART_HandleTypeDef uart, float data[], int data
         successful_sample_runs++;
 
       }
-    //   else 
-    //   {
-    //     cont_measurements = false; // if error code flip flag so nothing else runs
-    //   }
-    }
-    // turn off measurement
-    bool stop_failed = false;
-    int stop_failure_count = 0; // doesnt do anythingyet
-    return_code = stop_measurement(uart);
-    if (return_code != HAL_OK)
-    {
-      stop_failed = true;
-    }
-    else
-    {
-      stop_failed = false;
     }
 
-    if (stop_failed)
+    // stop the measurement, if it fails return to error code
+    HAL_StatusTypeDef stop_status;
+    if ((stop_status = stop_measurement(uart)) != HAL_OK) 
     {
-      stop_failure_count++;
+      return stop_status;
     }
 
     // check there was at least one successful run
     if (successful_sample_runs == 0)
     {
-        return HAL_ERROR;
+      return HAL_ERROR;
     }
 
     // calculate average
