@@ -42,6 +42,73 @@ HAL_StatusTypeDef start_measurement(UART_HandleTypeDef huart);
 HAL_StatusTypeDef stop_measurement(UART_HandleTypeDef huart);
 
 /*
+    send soft-reset command to put in same state as a power-reset
+    Can be used to ensure device can receive a start measurement command
+
+    Parameters:
+        huart: UART_HandleTypeDef
+            determines what ports to transmit over
+
+    Returns:
+        int:
+            HAL_OK if success
+            HAL_ERROR if any errors
+*/
+HAL_StatusTypeDef device_reset(UART_HandleTypeDef huart);
+
+/*
+    Transmits a command to the device with a limited number of retries and returns the 
+    status code 
+    
+    Parameters:
+       huart: UART_HandleTypeDef
+            determines what ports to transmit over
+        cmd: const uint8_t
+            array of the bytes to transmit that define what command is sent to the device
+        cmd_len: int
+            the number of bytes in cmd
+    
+    Returns:
+        HAL_OK if success
+        HAL_TIMEOUT if the command failed after 4 retries
+        HAL_BUSY if the device is busy
+        HAL_ERROR for other errors
+
+    Postcondition:
+        cmd is sent to the device which will trigger a response frame and possibly some action on
+        the device depending on sent command
+*/
+HAL_StatusTypeDef send_cmd(UART_HandleTypeDef huart, const uint8_t cmd[], int cmd_len);
+
+/*
+    Verifies that the response frame received matches the expected response frame
+    
+    Parameters:
+        expected_response_frame: const uint8_t
+            array of the response frame that should be received
+
+        actual_response_frame: const uint8_t
+            array of the response frame received
+        
+        expected_frame_len: int
+            the number of bytes in expected_response_frame
+
+        actual_frame_len: int
+            the number of bytes in actual_frame_len
+
+    Returns:
+        true if expected_response_frame exactly matches actual_response_frame
+         otherwise returns false
+    
+*/
+bool verify_response_frame(
+    const uint8_t expected_response_frame[], 
+    const uint8_t actual_response_frame[], 
+    const int expected_frame_len, 
+    const int actual_frame_len);
+
+
+/*
     Check for new measurements, need to send this command before receiving
 
     Parameters:

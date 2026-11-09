@@ -9,38 +9,21 @@ HAL_StatusTypeDef start_measurement(UART_HandleTypeDef huart)
 {
     // byte sequence that starts measurements using IEEE floats
     uint8_t start_measurement_float_cmd[] = {0x7e, 0x00, 0x00, 0x02, 0x01, 0x03, 0xf9, 0x7e};
-    HAL_StatusTypeDef tx_status;
     int cmd_len = 8;
-    int time_out_in_ms = 2000;
-    int timeout_counter = 0;
-    
-    while ((tx_status = HAL_UART_Transmit(&huart, start_measurement_float_cmd, cmd_len, time_out_in_ms)) != HAL_OK)
+    HAL_StatusTypeDef tx_status;
+ 
+    // sends cmd to device
+    if ((tx_status = send_cmd(huart, start_measurement_float_cmd, cmd_len)) != HAL_OK)
     {
-
-        if (tx_status == HAL_TIMEOUT)
-        {
-            if (timeout_counter < 3)
-            {   
-                HAL_Delay(1000);
-                timeout_counter++; // wait one second and try again
-                continue;
-            }
-            else 
-            {
-                return HAL_TIMEOUT;
-            }
-        }
-        // just return an error if can't start up
-        return HAL_ERROR;
-    }
+        return tx_status;
+    } 
 
     // get response frame
-    int len_response_frame = 7;
-    uint8_t response_frame[len_response_frame];
+    const int LEN_RESPONSE_FRAME = 7;
+    uint8_t response_frame[LEN_RESPONSE_FRAME];
 
-    int bytes_received = get_response_frame(huart, response_frame, len_response_frame);
-    const uint8_t EMPTY_RESPONSE_FRAME[] = {0x7e, 0x00, 0x00, 0x00, 0x00, 0xff, 0x7e};
-    const int EMPTY_RESPONSE_FRAME_LEN = 7;
+    int bytes_received = get_response_frame(huart, response_frame, LEN_RESPONSE_FRAME);
+    const uint8_t EXPECTED_RESPONSE_FRAME[] = {0x7e, 0x00, 0x00, 0x00, 0x00, 0xff, 0x7e};
 
     // Preserve the original communication error
     if (bytes_received <= 0)
@@ -48,19 +31,13 @@ HAL_StatusTypeDef start_measurement(UART_HandleTypeDef huart)
         return handle_error_codes(bytes_received);
     }
 
-    // Reject a response with an unexpected length
-    if (bytes_received != EMPTY_RESPONSE_FRAME_LEN)
-    {
+  // checks that received response matches expected response
+    if (!(verify_response_frame(
+        EXPECTED_RESPONSE_FRAME,
+         response_frame, 
+         LEN_RESPONSE_FRAME, 
+         bytes_received))) {
         return HAL_ERROR;
-    }
-
-    // response frame must match empty response frame
-    for (int i = 0; i < len_response_frame; i++)
-    {
-        if (response_frame[i] != EMPTY_RESPONSE_FRAME[i])
-        {
-            return HAL_ERROR;
-        }
     }
 
     // successful started measurements
@@ -88,13 +65,84 @@ HAL_StatusTypeDef stop_measurement(UART_HandleTypeDef huart)
 {
     // byte sequence that starts measurements using IEEE floats
     uint8_t stop_measurement_float_cmd[] = {0x7e, 0x00, 0x01, 0x00, 0xfe, 0x7e};
-    HAL_StatusTypeDef tx_status;
     int cmd_len = 6;
-    int time_out_in_ms = 2000;
-    int timeout_counter = 0;
+    HAL_StatusTypeDef tx_status;
+ 
+    // sends cmd to device
+    if ((tx_status = send_cmd(huart, stop_measurement_float_cmd, cmd_len)) != HAL_OK)
+    {
+        return tx_status;
+    } 
 
-    
-    while ((tx_status = HAL_UART_Transmit(&huart, stop_measurement_float_cmd, cmd_len, time_out_in_ms)) != HAL_OK)
+    // get response frame
+    int LEN_RESPONSE_FRAME = 7;
+    uint8_t response_frame[LEN_RESPONSE_FRAME];
+    int bytes_received = get_response_frame(huart, response_frame, LEN_RESPONSE_FRAME);
+    const uint8_t EXPECTED_RESPONSE_FRAME[] = {0x7e, 0x00, 0x01, 0x00, 0x00, 0xfe, 0x7e};
+
+    // Preserve the original communication error
+    if (bytes_received <= 0)
+    {
+        return handle_error_codes(bytes_received);
+    }
+
+    // checks that received response matches expected response
+    if (!(verify_response_frame(
+        EXPECTED_RESPONSE_FRAME,
+         response_frame, 
+         LEN_RESPONSE_FRAME, 
+         bytes_received))) {
+        return HAL_ERROR;
+    }
+
+    // successful started measurements
+    return HAL_OK;
+}
+
+HAL_StatusTypeDef device_reset(UART_HandleTypeDef huart)
+{
+    uint8_t device_reset_cmd[] = {0x7e, 0x00, 0xd3, 0x00, 0x2c, 0x7e};
+    int cmd_len = 6;
+    HAL_StatusTypeDef tx_status;
+ 
+    // sends cmd to device
+    if ((tx_status = send_cmd(huart, device_reset_cmd, cmd_len)) != HAL_OK)
+    {
+        return tx_status;
+    } 
+
+    // get response frame
+    const int LEN_RESPONSE_FRAME = 7;
+    uint8_t response_frame[LEN_RESPONSE_FRAME];
+
+    int bytes_received = get_response_frame(huart, response_frame, LEN_RESPONSE_FRAME);
+    const uint8_t EXPECTED_RESPONSE_FRAME[] = {0x7e, 0x00, 0xd3, 0x00, 0x00, 0x2c, 0x7e};
+
+    // Preserve the original communication error
+    if (bytes_received <= 0)
+    {
+        return handle_error_codes(bytes_received);
+    }
+
+    // checks that received response matches expected response
+    if (!(verify_response_frame(
+        EXPECTED_RESPONSE_FRAME,
+         response_frame, 
+         LEN_RESPONSE_FRAME, 
+         bytes_received))) {
+        return HAL_ERROR;
+    }
+
+    return HAL_OK;
+}
+
+HAL_StatusTypeDef send_cmd(UART_HandleTypeDef huart, const uint8_t cmd[], int cmd_len)
+{
+    const int TIME_OUT_IN_MS = 2000;
+    HAL_StatusTypeDef tx_status;
+    int timeout_counter = 0; 
+
+    while ((tx_status = HAL_UART_Transmit(&huart, cmd, cmd_len, TIME_OUT_IN_MS)) != HAL_OK)
     {
         if (tx_status == HAL_TIMEOUT)
         {
@@ -110,39 +158,9 @@ HAL_StatusTypeDef stop_measurement(UART_HandleTypeDef huart)
             }
         }
         // just return an error if can't start up
-        return HAL_ERROR;
+        return tx_status;
     }
 
-    // get response frame
-    int len_response_frame = 7;
-    uint8_t response_frame[len_response_frame];
-    const int EMPTY_RESPONSE_FRAME_LEN = 7;
-
-    int bytes_received = get_response_frame(huart, response_frame, len_response_frame);
-    const uint8_t EMPTY_RESPONSE_FRAME[] = {0x7e, 0x00, 0x01, 0x00, 0x00, 0xfe, 0x7e};
-
-    // Preserve the original communication error
-    if (bytes_received <= 0)
-    {
-        return handle_error_codes(bytes_received);
-    }
-
-    // Reject a response with an unexpected length
-    if (bytes_received != EMPTY_RESPONSE_FRAME_LEN)
-    {
-        return HAL_ERROR;
-    }
-
-    // response frame must match empty response frame
-    for (int i = 0; i < len_response_frame; i++)
-    {
-        if (response_frame[i] != EMPTY_RESPONSE_FRAME[i])
-        {
-            return HAL_ERROR;
-        }
-    }
-
-    // successful started measurements
     return HAL_OK;
 }
 
@@ -152,28 +170,13 @@ HAL_StatusTypeDef poll_measurements(UART_HandleTypeDef huart)
     // byte sequence that starts the read sensor command
     uint8_t read_sensor_cmd[] = {0x7e, 0x00, 0x03, 0x00, 0xfc, 0x7e};
     int cmd_len = 6;
-    int time_out_in_ms = 2000;
     HAL_StatusTypeDef tx_status;
-    int timeout_counter = 0;
-
-    while ((tx_status = HAL_UART_Transmit(&huart, read_sensor_cmd, cmd_len, time_out_in_ms)) !=HAL_OK)
+ 
+    // sends cmd to device
+    if ((tx_status = send_cmd(huart, read_sensor_cmd, cmd_len)) != HAL_OK)
     {
-         if (tx_status == HAL_TIMEOUT)
-        {
-            if (timeout_counter < 3)
-            {   
-                HAL_Delay(1000);
-                timeout_counter++; // wait one second and try again
-                continue;
-            }
-            else 
-            {
-                return HAL_TIMEOUT;
-            }
-        }
-        // just return an error if can't start up
-        return HAL_ERROR;
-    }
+        return tx_status;
+    } 
 
     // can now receive new measurements
     return HAL_OK;
@@ -240,6 +243,30 @@ int get_response_frame(UART_HandleTypeDef huart, uint8_t frame[], int frame_len)
 
     return i+1; // success, return number of bytes received
 
+}
+
+bool verify_response_frame(
+    const uint8_t expected_response_frame[], 
+    const uint8_t actual_response_frame[], 
+    const int expected_frame_len, 
+    const int actual_frame_len)
+{
+    // Reject a response with an unexpected length
+    if (actual_frame_len != expected_frame_len)
+    {
+        return false;
+    }
+
+    // actual_response_frame must match expected_response_frame
+    for (int i = 0; i < expected_frame_len; i++)
+    {
+        if (actual_response_frame[i] != expected_response_frame[i])
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 HAL_StatusTypeDef get_pm_data(UART_HandleTypeDef uart, float data[], int data_len)

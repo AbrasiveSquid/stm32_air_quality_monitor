@@ -121,8 +121,15 @@ int main(void)
 
   // bool cont_measurements = false;
   // bool stop_failed = false;
-  // TODO NEED TO ADD DEVICE RESET COMMAND
-  HAL_StatusTypeDef recovery_status = stop_measurement(huart1);
+  
+  HAL_StatusTypeDef tx_status;
+
+   if ((tx_status = device_reset(huart1)) != HAL_OK) // reset device before starting loop
+   {
+    return tx_status;
+   }
+
+  
   while (1)
   {
     
