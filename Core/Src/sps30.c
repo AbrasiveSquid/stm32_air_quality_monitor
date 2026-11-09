@@ -87,14 +87,14 @@ HAL_StatusTypeDef handle_error_codes(int err_code)
 HAL_StatusTypeDef stop_measurement(UART_HandleTypeDef huart)
 {
     // byte sequence that starts measurements using IEEE floats
-    uint8_t start_measurement_float_cmd[] = {0x7e, 0x00, 0x01, 0x00, 0xfe, 0x7e};
+    uint8_t stop_measurement_float_cmd[] = {0x7e, 0x00, 0x01, 0x00, 0xfe, 0x7e};
     HAL_StatusTypeDef tx_status;
     int cmd_len = 6;
     int time_out_in_ms = 2000;
     int timeout_counter = 0;
 
     
-    while ((tx_status = HAL_UART_Transmit(&huart, start_measurement_float_cmd, cmd_len, time_out_in_ms)) != HAL_OK)
+    while ((tx_status = HAL_UART_Transmit(&huart, stop_measurement_float_cmd, cmd_len, time_out_in_ms)) != HAL_OK)
     {
         if (tx_status == HAL_TIMEOUT)
         {
