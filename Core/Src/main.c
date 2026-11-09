@@ -22,6 +22,7 @@
 #include "air_quality.h"
 #include <stdbool.h>
 
+#include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_def.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -129,75 +130,24 @@ int main(void)
     return tx_status;
    }
 
-  
+  uint32_t cycle_start;
   while (1)
   {
-    
+    // sample every 5 minutes
+     cycle_start = HAL_GetTick(); // save when measurement started
 
+    // take pm measurement
     return_code = sample_pm_data(huart1, pm_data, 10);
+  
 
+    while ((uint32_t)(HAL_GetTick() - cycle_start) < 300000U) // wait 5 minutes
+    {
+      HAL_Delay(1000);
+    }
     if (return_code != HAL_OK)
     {
       HAL_Delay(5000);
     }
-    // start the measurement
-    // if ((return_code = start_measurement(huart1)) != HAL_OK)
-    // {
-    //   cont_measurements = false; // if error code flip flag so nothing else runs
-    // }
-    // else 
-    // {
-    //   cont_measurements = true;
-    // }
-
-    // HAL_Delay(5000);
-
-    // if (cont_measurements)
-    // {
-    //   // wait 30 seconds to stabilize
-
-    //   if ((return_code = poll_measurements(huart1)) != HAL_OK)
-    //   { 
-    //     cont_measurements = false; // if error code flip flag so nothing else runs
-    //   }
-    // }
-    
-
-    // if (cont_measurements)
-    // {
-    //   return_code = get_pm_data(huart1, pm_data, 10);
-    //   if (return_code == HAL_OK)
-    //   {
-    //     // once screen hooked up if no err_code will update screen
-
-    //   }
-    //   else 
-    //   {
-    //     cont_measurements = false; // if error code flip flag so nothing else runs
-    //   }
-    // }
-   
-
-    // // turn off measurement
-    // return_code = stop_measurement(huart1);
-    // if (return_code != HAL_OK)
-    // {
-    //   stop_failed = true;
-    // }
-    // else
-    // {
-    //   stop_failed = false;
-    // }
-
-    // if (stop_failed)
-    // {
-    //   stop_failure_count++;
-    // }
-    // if (!cont_measurements) 
-    // {
-    //   failed_measurements++;
-    // }
-    // HAL_Delay(5000);
   }
 
 }
