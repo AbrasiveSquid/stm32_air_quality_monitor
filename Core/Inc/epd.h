@@ -17,7 +17,7 @@
 
     Returns:
         HAL_OK if command sent successfully
-        HAL_TIMEOUT if display timeouted
+        HAL_TIMEOUT if display timedout
         HAL_BUSY if display is busy
         HAL_ERROR for all other errors
 */  
@@ -39,12 +39,66 @@ HAL_StatusTypeDef epd_send_command(SPI_HandleTypeDef *spi, const uint8_t cmd_byt
         
     Returns:
         HAL_OK if command sent successfully
-        HAL_TIMEOUT if display timeouted
+        HAL_TIMEOUT if display timedout
         HAL_BUSY if display is busy
         HAL_ERROR for all other errors
 */  
 HAL_StatusTypeDef epd_send_data(SPI_HandleTypeDef *spi, 
         const uint8_t data_buffer[], const uint16_t size);
+
+/*
+    Completes a hardware reset of the epaper display
+*/  
+static void epd_hardware_reset(void);
+
+
+/*
+    Checks if epaper display is busy, and waits for it to be free
+
+    Returns:
+        HAL_OK if busy ended successfully
+        HAL_TIMEOUT if display timedout
+*/
+HAL_StatusTypeDef epd_busy_wait(void);
+
+/*
+    Completes a software reset of the epaper device
+
+    Parameters:
+        spi: SPI_HandleTypeDef *
+            pointer to SPI_HandleTypeDef, the SPI interface the epaper is on
+
+    Returns:
+        HAL_OK if software reset sent successfully
+        HAL_TIMEOUT if display timedout
+*/
+HAL_StatusTypeDef epd_software_reset(SPI_HandleTypeDef *spi);
+
+/*
+    Completes a full reset of the epaper device
+
+    Parameters:
+        spi: SPI_HandleTypeDef *
+            pointer to SPI_HandleTypeDef, the SPI interface the epaper is on
+
+    Returns:
+        HAL_OK if reset sent successfully
+        HAL_TIMEOUT if display timedout
+*/
+HAL_StatusTypeDef epd_full_reset(SPI_HandleTypeDef *spi);
+
+/*
+    Completes a full reset of the epaper device
+
+    Parameters:
+        spi: SPI_HandleTypeDef *
+            pointer to SPI_HandleTypeDef, the SPI interface the epaper is on
+
+    Returns:
+        HAL_OK if reset sent successfully
+        HAL_TIMEOUT if display timedout
+*/
+HAL_StatusTypeDef epd_init(SPI_HandleTypeDef *spi);
 
 
 #endif
