@@ -47,6 +47,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     Core/Src/sps30.c
     Core/Src/air_quality.c
+    Core/Src/epd.c
 )
 
 # Add include paths
