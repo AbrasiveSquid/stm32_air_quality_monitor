@@ -39,3 +39,13 @@ A record of the project's design decisions, firmware work, hardware bring-up, de
 - tested consecutive 30-second averaging cycles for pm measurements
 - Improved error handling
 - added 5-minute sampling intervals using HAL_GetTick()
+
+## November 10 - Refactoring SPS30 driver and device reset
+- Added SPI comm functions for the waveshare 2.13 epaper v4 display
+- Added a software and hardware reset, init, RAM and cursor configs (intepreted from waveshare demo files)
+- Display was not working and troubleshooting each connection revealed I had DIN connected on MISO (D12) not MOSI (D11) 
+- Display properly refreshes
+
+### Next steps:
+- Display a simple test pattern.
+- Implement basic drawing functions and text rendering.
