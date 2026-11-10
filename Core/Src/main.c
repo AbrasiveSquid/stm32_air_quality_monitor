@@ -23,6 +23,7 @@
 /* USER CODE BEGIN Includes */
 #include "sps30.h"
 #include "air_quality.h"
+#include "epd.h"
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_def.h"
 /* USER CODE END Includes */
@@ -99,15 +100,30 @@ int main(void)
   MX_USART2_UART_Init();
   MX_USART1_UART_Init();
   MX_SPI1_Init();
-  /* USER CODE BEGIN 2 */
-  float pm_data[10] = {0}; // holds current pm data
-  HAL_StatusTypeDef return_code;
-  uint32_t cycle_start;
 
-  if ((return_code = device_reset(huart1)) != HAL_OK) // reset device before starting loop
+  /* USER CODE BEGIN 2 */
+  HAL_StatusTypeDef return_code;
+
+  // init epaper display
+  return_code = epd_init(&hspi1);
+  if (return_code != HAL_OK)
   {
-    return return_code;
+    HAL_Delay(1000);
   }
+  return_code = epd_clear_screen(&hspi1);
+  if (return_code != HAL_OK)
+  {
+    HAL_Delay(1000);
+  }
+
+
+  // float pm_data[10] = {0}; // holds current pm data
+  // uint32_t cycle_start;
+
+  // if ((return_code = device_reset(huart1)) != HAL_OK) // reset device before starting loop
+  // {
+  //   return return_code;
+  // }
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -118,21 +134,25 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-    // record start of sampling cycle
-     cycle_start = HAL_GetTick(); // save when measurement started
+    
 
-    // collect average pm measurement
-    return_code = sample_pm_data(huart1, pm_data, 10);
+
+
+  //   // record start of sampling cycle
+    // cycle_start = HAL_GetTick(); // save when measurement started
+
+  //   // collect average pm measurement
+  //   return_code = sample_pm_data(huart1, pm_data, 10);
   
-    // wait 5 minutes
-    while ((uint32_t)(HAL_GetTick() - cycle_start) < 300000U) 
-    {
-      HAL_Delay(1000);
-    }
-    if (return_code != HAL_OK)
-    {
-      HAL_Delay(5000);
-    }
+  //   // wait 5 minutes
+  //   while ((uint32_t)(HAL_GetTick() - cycle_start) < 300000U) 
+  //   {
+  //     HAL_Delay(1000);
+  //   }
+  //   if (return_code != HAL_OK)
+  //   {
+  //     HAL_Delay(5000);
+  //   }
   }
   /* USER CODE END 3 */
 }

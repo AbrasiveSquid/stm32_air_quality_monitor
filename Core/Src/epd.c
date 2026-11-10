@@ -18,7 +18,7 @@ HAL_StatusTypeDef epd_send_command(SPI_HandleTypeDef *spi, const uint8_t cmd_byt
     uint8_t cmd[] = {cmd_byte};
     const uint8_t CMD_LEN = 1;
     const uint32_t TIMEOUT_IN_MS = 1000;
-    HAL_StatusTypeDef tx_status = HAL_SPI_Transmit(spi, cmd, CMD_LEN, TIMEOUT_IN_MS);
+0    HAL_StatusTypeDef tx_status = HAL_SPI_Transmit(spi, cmd, CMD_LEN, TIMEOUT_IN_MS);
 
     // deselect display
     HAL_GPIO_WritePin(EPD_CS_GPIO_Port, EPD_CS_Pin, GPIO_PIN_SET);
@@ -57,6 +57,7 @@ HAL_StatusTypeDef epd_busy_wait(void)
     GPIO_PinState busy_pin;
     const uint32_t TIMEOUT_MAX = 10000U;
     const uint32_t WAIT_TIME_IN_MS = 10;
+    uint32_t busy_counter = 0; // DEBUG
 
     uint32_t busy_start = HAL_GetTick();
     while((uint32_t)(HAL_GetTick() - busy_start) < TIMEOUT_MAX) {
@@ -66,13 +67,14 @@ HAL_StatusTypeDef epd_busy_wait(void)
             HAL_Delay(WAIT_TIME_IN_MS);
             return HAL_OK;
         }
+        ++busy_counter;
         HAL_Delay(WAIT_TIME_IN_MS);
     }
     HAL_Delay(WAIT_TIME_IN_MS);
     return HAL_TIMEOUT;
 }
 
-static void epd_hardware_reset(void)
+void epd_hardware_reset(void)
 {
     // this hardware reset sequenece adapted from waveshare code on their website for stm32
 
@@ -81,7 +83,7 @@ static void epd_hardware_reset(void)
     HAL_Delay(20); // waits 20 ms for display to settle
     // sets the RST pin to low
     HAL_GPIO_WritePin(EPD_RST_GPIO_Port, EPD_RST_Pin, GPIO_PIN_RESET);
-    HAL_Delay(2); // waits 2 ms for pin to be set
+0    HAL_Delay(2); // waits 2 ms for pin to be set
     // set pin back to high since it is active low
     HAL_GPIO_WritePin(EPD_RST_GPIO_Port, EPD_RST_Pin, GPIO_PIN_SET);
     HAL_Delay(20); // waits 20 ms for display to settle
@@ -308,3 +310,67 @@ HAL_StatusTypeDef epd_set_cursor(SPI_HandleTypeDef *spi,uint16_t x_start, uint16
 
     return HAL_OK;
 }
+
+HAL_StatusTypeDef epd_clear_screen(SPI_HandleTypeDef *spi)
+{
+    uint16_t width, height;
+    width = (EPD_WIDTH % 8 == 0) ? (EPD_WIDTH / 8 ) : (EPD_WIDTH / 8 + 1);
+    height = EPD_HEIGHT;
+
+    HAL_StatusTypeDef tx_status;
+
+    const uint8_t write_screen_cmd = 0x24;
+    if ((tx_status = epd_send_command(spi, write_screen_cmd)) != HAL_OK)
+    {
+        return tx_status;
+    }
+
+    // create a data buffer of all white bytes
+    uint16_t data_buff_len = width * height;
+    const uint8_t white_byte = 0xff;
+    // allocates to static mem at compile time to prent stack overflow
+    static uint8_t data_buff[((EPD_WIDTH + 7U) / 8U) * EPD_HEIGHT]; 
+    
+    for (uint16_t i = 0; i < data_buff_len; ++i)
+    {
+        data_buff[i] = white_byte;
+    }
+
+    // send data of all white bytes
+    if ((tx_status = epd_send_data(spi, data_buff, data_buff_len)) != HAL_OK)
+    {
+        return tx_status;
+    }
+
+    return epd_display_refresh(spi);
+}
+
+HAL_StatusTypeDef epd_display_refresh(SPI_HandleTypeDef *spi)
+{
+    HAL_StatusTypeDef tx_status;
+
+    const uint8_t display_update_byte = 0x22;
+    const uint8_t display_update_sequence_byte = 0x20;
+    const uint8_t display_update_data_len = 1;
+    const uint8_t display_update_data[] = {0xf7};
+
+    // update display control 
+    if ((tx_status = epd_send_command(spi, display_update_byte)) != HAL_OK)
+    {
+        return tx_status;
+    }
+    if ((tx_status = epd_send_data(spi, display_update_data, display_update_data_len)) != HAL_OK)
+    {
+        return tx_status;
+    }
+
+    // update display sequence
+    if ((tx_status = epd_send_command(spi, display_update_sequence_byte)) != HAL_OK)
+    {
+        return tx_status;
+    }
+
+    // wait for display to not be busy before returning
+    return epd_busy_wait();
+}
+

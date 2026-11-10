@@ -54,7 +54,7 @@ HAL_StatusTypeDef epd_send_data(SPI_HandleTypeDef *spi,
 /*
     Completes a hardware reset of the epaper display
 */  
-static void epd_hardware_reset(void);
+void epd_hardware_reset(void);
 
 
 /*
@@ -157,5 +157,37 @@ HAL_StatusTypeDef epd_set_window(
 */
 HAL_StatusTypeDef epd_set_cursor(SPI_HandleTypeDef *spi,uint16_t x_start, uint16_t y_start);
 
+/*
+    Clears the screen by writing white pixels to it
+
+    Parameters:
+        spi: SPI_HandleTypeDef *
+            pointer to SPI_HandleTypeDef, the SPI interface the epaper is on
+
+    Returns:
+        HAL_OK if command sent successfully
+        HAL_TIMEOUT if display timedout
+        HAL_BUSY if display is busy
+        HAL_ERROR for all other errors
+*/
+HAL_StatusTypeDef epd_clear_screen(SPI_HandleTypeDef *spi);
+
+/* 
+    Refreshes the epaper display by updating pixels to match what is in ram
+
+    Parameters:
+        spi: SPI_HandleTypeDef *
+            pointer to SPI_HandleTypeDef, the SPI interface the epaper is on
+
+    Returns:
+        HAL_OK if command sent successfully
+        HAL_TIMEOUT if display timedout
+        HAL_BUSY if display is busy
+        HAL_ERROR for all other errors
+*/
+HAL_StatusTypeDef epd_display_refresh(SPI_HandleTypeDef *spi);
+
+
 
 #endif
+
