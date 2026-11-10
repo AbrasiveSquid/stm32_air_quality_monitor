@@ -3,6 +3,11 @@
 #ifndef EPD_H
 #define EPD_H
 #include "stm32f4xx_hal.h"
+#include "stm32f4xx_hal_def.h"
+#include "stm32f4xx_hal_spi.h"
+
+#define EPD_WIDTH 122
+#define EPD_HEIGHT 250
 
 
 /*
@@ -88,17 +93,69 @@ HAL_StatusTypeDef epd_software_reset(SPI_HandleTypeDef *spi);
 HAL_StatusTypeDef epd_full_reset(SPI_HandleTypeDef *spi);
 
 /*
-    Completes a full reset of the epaper device
+    Does an initialization for the epaper device
 
     Parameters:
         spi: SPI_HandleTypeDef *
             pointer to SPI_HandleTypeDef, the SPI interface the epaper is on
 
     Returns:
-        HAL_OK if reset sent successfully
+        HAL_OK if display initialized successfully
         HAL_TIMEOUT if display timedout
+        HAL_TIMEOUT for all other errors
 */
 HAL_StatusTypeDef epd_init(SPI_HandleTypeDef *spi);
+
+/*
+    Sets the RAM window for writing to the epaper display
+
+    Parameters:
+        spi: SPI_HandleTypeDef *
+            pointer to SPI_HandleTypeDef, the SPI interface the epaper is on
+        
+        x_start: uint16_t
+            the initial column
+        
+        y_start: uint16_t
+            the initial row
+        
+        x_end: uint16_t
+            the last column
+
+        y_end: uint16_t
+            the final row
+    
+    Returns:
+        HAL_OK if command sent successfully
+        HAL_TIMEOUT if display timedout
+        HAL_BUSY if display is busy
+        HAL_ERROR for all other errors
+*/
+HAL_StatusTypeDef epd_set_window(
+    SPI_HandleTypeDef *spi,
+    uint16_t x_start, uint16_t y_start, uint16_t x_end, uint16_t y_end);
+
+
+/*
+    Sets the cursor position for writing to epaper display
+
+    Parameters:
+        spi: SPI_HandleTypeDef *
+            pointer to SPI_HandleTypeDef, the SPI interface the epaper is on
+        
+        x_start: uint16_t
+            the column ps for the cuorsor
+        
+        y_start: uint16_t
+            the row ps for the cuorsor
+    
+    Returns:
+        HAL_OK if command sent successfully
+        HAL_TIMEOUT if display timedout
+        HAL_BUSY if display is busy
+        HAL_ERROR for all other errors
+*/
+HAL_StatusTypeDef epd_set_cursor(SPI_HandleTypeDef *spi,uint16_t x_start, uint16_t y_start);
 
 
 #endif
