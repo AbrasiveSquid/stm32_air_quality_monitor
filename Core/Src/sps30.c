@@ -1,7 +1,5 @@
 /* source code file for the driver for the sensirion sps30 PM sensor for an stm32 nucelo*/
 #include "sps30.h"
-#include "stm32f4xx_hal.h"
-#include "stm32f4xx_hal_def.h"
 #include <stdint.h>
 #include <string.h>
 

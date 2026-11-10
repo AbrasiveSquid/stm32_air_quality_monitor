@@ -1,6 +1,5 @@
 #include "air_quality.h"
 #include "sps30.h"
-#include "stm32f4xx_hal_def.h"
 
 HAL_StatusTypeDef sample_pm_data(UART_HandleTypeDef uart, float data[], int data_len)
 {

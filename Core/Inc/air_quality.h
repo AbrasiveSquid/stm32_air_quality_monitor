@@ -1,6 +1,8 @@
 #ifndef AIR_QUALITY_H
 #define AIR_QUALITY_H
 #include "sps30.h"
+#include "stm32f4xx_hal.h"
+
 
 
 /*
