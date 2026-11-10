@@ -18,20 +18,15 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "sps30.h"
-#include "air_quality.h"
-#include <stdbool.h>
 
-#include "stm32f4xx_hal.h"
-#include "stm32f4xx_hal_def.h"
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
 
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "sps30.h"
+#include "air_quality.h"
+#include "stm32f4xx_hal.h"
+#include "stm32f4xx_hal_def.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -103,44 +98,33 @@ int main(void)
   MX_USART2_UART_Init();
   MX_USART1_UART_Init();
 
-  // uint8_t read_sensor[] = {0x7e, 0x00, 0x03, 0x00, 0xfc, 0x7e};
-  // uint8_t stop_measurement[] = {0x7e, 0x00, 0x01, 0x00, 0xfe, 0x7e};
-  // // receive 47 bytes which is 40 byte data after 5 header bytes, and 2 extra bytes at end
-  // uint8_t receive_data_raw[200] = {0}; // have extra space for byte stuffing
-  // // uint8_t receive_buffer[1];
-  // uint8_t receive_data_unbytestuffed[50] = {0}; 
-  // uint8_t data_flip_endianness[40] = {0};
-  // uint8_t receive_buffer[1];
-  float pm_data[10] = {0};
-  // char debug_string[200];
-  // HAL_StatusTypeDef tx_status;
-
-  int return_code;
-  // int stop_failure_count = 0;
-  // int failed_measurements = 0;
-  // HAL_UART_Transmit(&huart1, stop_measurement, 6, 2000);
-
-  // bool cont_measurements = false;
-  // bool stop_failed = false;
-  
-  HAL_StatusTypeDef tx_status;
-
-   if ((tx_status = device_reset(huart1)) != HAL_OK) // reset device before starting loop
-   {
-    return tx_status;
-   }
-
+  /* USER CODE BEGIN 2 */
+  float pm_data[10] = {0}; // holds current pm data
+  HAL_StatusTypeDef return_code;
   uint32_t cycle_start;
+
+  if ((return_code = device_reset(huart1)) != HAL_OK) // reset device before starting loop
+  {
+    return return_code;
+  }
+  /* USER CODE END 2 */
+
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // sample every 5 minutes
+  /* USER CODE END WHILE */
+
+   /* USER CODE BEGIN 3 */
+
+    // record start of sampling cycle
      cycle_start = HAL_GetTick(); // save when measurement started
 
-    // take pm measurement
+    // collect average pm measurement
     return_code = sample_pm_data(huart1, pm_data, 10);
   
-
-    while ((uint32_t)(HAL_GetTick() - cycle_start) < 300000U) // wait 5 minutes
+    // wait 5 minutes
+    while ((uint32_t)(HAL_GetTick() - cycle_start) < 300000U) 
     {
       HAL_Delay(1000);
     }
@@ -149,7 +133,7 @@ int main(void)
       HAL_Delay(5000);
     }
   }
-
+  /* USER CODE END 3 */
 }
 
 
