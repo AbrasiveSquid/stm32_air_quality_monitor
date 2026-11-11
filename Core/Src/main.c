@@ -110,11 +110,43 @@ int main(void)
   {
     HAL_Delay(1000);
   }
-  return_code = epd_clear_screen(&hspi1);
+  epd_clear_screen();
+
+  // draw top
+  for (uint8_t i = 0; i < 20; ++i)
+  {
+    epd_draw_pixel(i+10, 5, 0);
+  }
+
+  // draw bottom
+  for (uint8_t i = 0; i < 20; ++i)
+  {
+    epd_draw_pixel(i+10, 24, 0);
+  }
+
+  // draw right
+  for (uint8_t i = 0; i < 20; ++i)
+  {
+    epd_draw_pixel(29, i+5, 0);
+  }
+
+
+  // draw left
+  for (uint8_t i = 0; i < 20; ++i)
+  {
+    epd_draw_pixel(10, i+5, 0);
+  }
+
+
+
+
+  return_code = epd_update_display(&hspi1);
   if (return_code != HAL_OK)
   {
     HAL_Delay(1000);
   }
+
+
 
 
   // float pm_data[10] = {0}; // holds current pm data

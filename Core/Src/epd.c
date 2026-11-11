@@ -1,24 +1,34 @@
 #include "epd.h"
-#include "main.h"
-#include "stm32f4xx_hal.h"
-#include "stm32f4xx_hal_def.h"
-#include "stm32f4xx_hal_gpio.h"
 #include <stdint.h>
+
+
+
+// frame buffer used to draw to epaper display
+#define EPD_BYTES_PER_ROW ((EPD_WIDTH + 7U) / 8U)
+#define EPD_BUFFER_SIZE (EPD_BYTES_PER_ROW * EPD_HEIGHT)
+static uint8_t frame_buffer[EPD_BUFFER_SIZE];
 
 
 
 HAL_StatusTypeDef epd_send_command(SPI_HandleTypeDef *spi, const uint8_t cmd_byte)
 {
+    
     // select the display
     HAL_GPIO_WritePin(EPD_CS_GPIO_Port, EPD_CS_Pin, GPIO_PIN_RESET);
 
     // select command
     HAL_GPIO_WritePin(EPD_DC_GPIO_Port, EPD_DC_Pin, GPIO_PIN_RESET);
 
+    HAL_StatusTypeDef tx_status;
     uint8_t cmd[] = {cmd_byte};
     const uint8_t CMD_LEN = 1;
     const uint32_t TIMEOUT_IN_MS = 1000;
-0    HAL_StatusTypeDef tx_status = HAL_SPI_Transmit(spi, cmd, CMD_LEN, TIMEOUT_IN_MS);
+
+     if ((tx_status = HAL_SPI_Transmit(
+        spi, cmd, CMD_LEN, TIMEOUT_IN_MS)) != HAL_OK)
+     {
+        return tx_status;
+     }
 
     // deselect display
     HAL_GPIO_WritePin(EPD_CS_GPIO_Port, EPD_CS_Pin, GPIO_PIN_SET);
@@ -57,7 +67,6 @@ HAL_StatusTypeDef epd_busy_wait(void)
     GPIO_PinState busy_pin;
     const uint32_t TIMEOUT_MAX = 10000U;
     const uint32_t WAIT_TIME_IN_MS = 10;
-    uint32_t busy_counter = 0; // DEBUG
 
     uint32_t busy_start = HAL_GetTick();
     while((uint32_t)(HAL_GetTick() - busy_start) < TIMEOUT_MAX) {
@@ -67,7 +76,6 @@ HAL_StatusTypeDef epd_busy_wait(void)
             HAL_Delay(WAIT_TIME_IN_MS);
             return HAL_OK;
         }
-        ++busy_counter;
         HAL_Delay(WAIT_TIME_IN_MS);
     }
     HAL_Delay(WAIT_TIME_IN_MS);
@@ -83,7 +91,7 @@ void epd_hardware_reset(void)
     HAL_Delay(20); // waits 20 ms for display to settle
     // sets the RST pin to low
     HAL_GPIO_WritePin(EPD_RST_GPIO_Port, EPD_RST_Pin, GPIO_PIN_RESET);
-0    HAL_Delay(2); // waits 2 ms for pin to be set
+    HAL_Delay(2); // waits 2 ms for pin to be set
     // set pin back to high since it is active low
     HAL_GPIO_WritePin(EPD_RST_GPIO_Port, EPD_RST_Pin, GPIO_PIN_SET);
     HAL_Delay(20); // waits 20 ms for display to settle
@@ -311,39 +319,16 @@ HAL_StatusTypeDef epd_set_cursor(SPI_HandleTypeDef *spi,uint16_t x_start, uint16
     return HAL_OK;
 }
 
-HAL_StatusTypeDef epd_clear_screen(SPI_HandleTypeDef *spi)
+void epd_clear_screen(void)
 {
-    uint16_t width, height;
-    width = (EPD_WIDTH % 8 == 0) ? (EPD_WIDTH / 8 ) : (EPD_WIDTH / 8 + 1);
-    height = EPD_HEIGHT;
-
-    HAL_StatusTypeDef tx_status;
-
-    const uint8_t write_screen_cmd = 0x24;
-    if ((tx_status = epd_send_command(spi, write_screen_cmd)) != HAL_OK)
-    {
-        return tx_status;
-    }
-
     // create a data buffer of all white bytes
-    uint16_t data_buff_len = width * height;
     const uint8_t white_byte = 0xff;
-    // allocates to static mem at compile time to prent stack overflow
-    static uint8_t data_buff[((EPD_WIDTH + 7U) / 8U) * EPD_HEIGHT]; 
-    
-    for (uint16_t i = 0; i < data_buff_len; ++i)
+    for (uint16_t i = 0; i < EPD_BUFFER_SIZE; ++i)
     {
-        data_buff[i] = white_byte;
+        frame_buffer[i] = white_byte;
     }
-
-    // send data of all white bytes
-    if ((tx_status = epd_send_data(spi, data_buff, data_buff_len)) != HAL_OK)
-    {
-        return tx_status;
-    }
-
-    return epd_display_refresh(spi);
 }
+
 
 HAL_StatusTypeDef epd_display_refresh(SPI_HandleTypeDef *spi)
 {
@@ -374,3 +359,120 @@ HAL_StatusTypeDef epd_display_refresh(SPI_HandleTypeDef *spi)
     return epd_busy_wait();
 }
 
+HAL_StatusTypeDef epd_update_display(SPI_HandleTypeDef *spi)
+{
+    HAL_StatusTypeDef tx_status;
+
+    const uint8_t write_screen_cmd = 0x24;
+    if ((tx_status = epd_send_command(spi, write_screen_cmd)) != HAL_OK)
+    {
+        return tx_status;
+    }
+
+    // send current frame buffer to display
+    if ((tx_status = epd_send_data(spi, frame_buffer, EPD_BUFFER_SIZE)) != HAL_OK)
+    {
+        return tx_status;
+    }
+
+    return epd_display_refresh(spi);
+}
+
+HAL_StatusTypeDef epd_draw_pixel(uint8_t x_coord, uint8_t y_coord, uint8_t colour)
+{
+    // check if coordiantes are valid
+    if (!(verify_coordinates_within_bounds(x_coord, y_coord)))
+    {
+        return HAL_ERROR;
+    }
+
+    // calculate pixel
+    const uint8_t BITS_PER_BYTE = 8U;
+    uint16_t byte = (y_coord * EPD_BYTES_PER_ROW) + (x_coord / BITS_PER_BYTE); // want floor of x_coord
+  
+
+    // create bit_mask to change only single pixel
+    const uint8_t MSB = 7U;
+    uint8_t pixel_position = MSB - (x_coord % BITS_PER_BYTE); // get bit position in the byte 7th bit modulo 8 bits/byte
+    uint8_t bit_mask = (1U << pixel_position); // create mask for a single pixel
+
+    // update frame buffer
+    if (colour) // set to white
+    {
+        frame_buffer[byte] |= bit_mask;
+    }
+    else 
+    {
+        frame_buffer[byte] &= ~bit_mask;
+    }
+    return HAL_OK;
+}
+
+bool verify_coordinates_within_bounds(const uint8_t width, const uint8_t height)
+{
+    // check positive
+    if (width < 0 || height < 0)
+    {
+        return false;
+    }
+
+    // check smaller than bounds
+    if (width >= EPD_WIDTH || height >= EPD_HEIGHT)
+    {
+        return false;
+    }
+
+    return true;
+}
+
+
+// HAL_StatusTypeDef epd_draw_line(SPI_HandleTypeDef *spi)
+// {
+//     HAL_StatusTypeDef tx_status;
+
+//     const uint8_t write_screen_cmd = 0x24;
+//     if ((tx_status = epd_send_command(spi, write_screen_cmd)) != HAL_OK)
+//     {
+//         return tx_status;
+//     }
+
+//     const uint8_t white_byte = 0xff;
+//     const uint8_t black_byte = 0x0;
+
+//     uint16_t mid_byte = EPD_BUFFER_SIZE / 2;
+//     uint16_t mid_byte_start = mid_byte - 8;
+//     uint16_t mid_byte_end = mid_byte + 8;
+
+//     for (uint16_t i = 0; i < EPD_BUFFER_SIZE; ++i)
+//     {
+//         if (i <= mid_byte_start || i >= mid_byte_end)
+//         {
+//             frame_buffer[i] = white_byte;
+//         }
+//         else 
+//         {
+//             frame_buffer[i] = black_byte;
+//         }
+//     }
+        
+
+
+//     // uint16_t i = 0;
+//     // for (; i < 320; ++i)
+//     // {
+//     //     data_buff[i] = black_byte;
+//     // }
+
+//     //  for (; i < data_buff_len; ++i)
+//     // {
+//     //     data_buff[i] = white_byte;
+//     // }
+
+//     // send data of all white bytes
+//     if ((tx_status = epd_send_data(spi, frame_buffer, EPD_BUFFER_SIZE)) != HAL_OK)
+//     {
+//         return tx_status;
+//     }
+
+//     return epd_display_refresh(spi);
+// }

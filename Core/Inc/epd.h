@@ -2,9 +2,12 @@
 
 #ifndef EPD_H
 #define EPD_H
+#include "main.h"
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_def.h"
 #include "stm32f4xx_hal_spi.h"
+#include <stdint.h>
+#include <stdbool.h>
 
 #define EPD_WIDTH 122
 #define EPD_HEIGHT 250
@@ -158,19 +161,10 @@ HAL_StatusTypeDef epd_set_window(
 HAL_StatusTypeDef epd_set_cursor(SPI_HandleTypeDef *spi,uint16_t x_start, uint16_t y_start);
 
 /*
-    Clears the screen by writing white pixels to it
+    Updates the framebuffer to all white pixels to prepare to clear screen
 
-    Parameters:
-        spi: SPI_HandleTypeDef *
-            pointer to SPI_HandleTypeDef, the SPI interface the epaper is on
-
-    Returns:
-        HAL_OK if command sent successfully
-        HAL_TIMEOUT if display timedout
-        HAL_BUSY if display is busy
-        HAL_ERROR for all other errors
 */
-HAL_StatusTypeDef epd_clear_screen(SPI_HandleTypeDef *spi);
+void epd_clear_screen(void);
 
 /* 
     Refreshes the epaper display by updating pixels to match what is in ram
@@ -187,6 +181,59 @@ HAL_StatusTypeDef epd_clear_screen(SPI_HandleTypeDef *spi);
 */
 HAL_StatusTypeDef epd_display_refresh(SPI_HandleTypeDef *spi);
 
+/*
+    Sends the frame_buffer to the epaper display and updates it to display what is currently
+    in the frame buffer
+
+    Parameters:
+        spi: SPI_HandleTypeDef *
+            pointer to SPI_HandleTypeDef, the SPI interface the epaper is on
+    
+*/
+HAL_StatusTypeDef epd_update_display(SPI_HandleTypeDef *spi);
+
+/* 
+    Draws a one pixel to the epaper display
+
+    Parameters:
+        x_coord: uint8_t
+            the x coordinate of the pixel (column)
+        
+        y_coord: uint8_t
+            the y coordinate of the pixel (row)
+
+        colour: uint8_t
+            the colour of the pixel 0 for black, 1 for white
+
+    Returns:
+        HAL_OK if command sent successfully
+        HAL_TIMEOUT if display timedout
+        HAL_BUSY if display is busy
+        HAL_ERROR for all other errors
+*/
+HAL_StatusTypeDef epd_draw_pixel(uint8_t x_coord, uint8_t y_coord, uint8_t colour);
+
+/*
+    Verifies if a width and a height are within the bounds of the epaper display
+    
+    Parameters:
+        width: const uint8_t
+            the number of columns within the epaper display, defined in EPD_WIDTH
+
+        height: const uint8_t
+            the number of rows within the epaper display, defined in EPD_HEIGHT
+
+
+    Returns:
+        true if within bounds, otherwise false
+*/
+bool verify_coordinates_within_bounds(const uint8_t width, const uint8_t height);
+
+
+
+
+
+// HAL_StatusTypeDef epd_draw_line(SPI_HandleTypeDef *spi);
 
 
 #endif
