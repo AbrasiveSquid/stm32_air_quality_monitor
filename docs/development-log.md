@@ -40,12 +40,21 @@ A record of the project's design decisions, firmware work, hardware bring-up, de
 - Improved error handling
 - added 5-minute sampling intervals using HAL_GetTick()
 
-## November 10 - Refactoring SPS30 driver and device reset
+## November 10 - E-paper driver
 - Added SPI comm functions for the waveshare 2.13 epaper v4 display
 - Added a software and hardware reset, init, RAM and cursor configs (intepreted from waveshare demo files)
 - Display was not working and troubleshooting each connection revealed I had DIN connected on MISO (D12) not MOSI (D11) 
 - Display properly refreshes
 
+## November 10, evening - Drawing to e-paper display
+- moved frame buffer to a static global variable within epd.c so multiple functions can write to it
+- Separated frame ;buffer from spi transmission and display refresh. To allow multiple drawings to display before it is updated.
+- Implemented an epd_draw_pixel() function that takes x/y coordinate and colour and updates the frame buffer, use byte indexing, and bit shifting and bit masks
+- Used draw_pixel function to draw a rectangle to the display
+- Noted display oriented vertically, so the width is the smaller than length (like a portrait)
+
+
 ### Next steps:
-- Display a simple test pattern.
-- Implement basic drawing functions and text rendering.
+- Add waveshare's bitmap fonts and graphics library
+- Display text on the epaper display
+- Display actual SPS30 particulate measurements
