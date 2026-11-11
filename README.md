@@ -1,8 +1,8 @@
 # STM32 Air Quality Monitor
 
-An embedded air quality monitor built around an **STM32 NUCLEO-F446RE** development board. The goal is a standalone device that measures airborne particulate matter (PM) and carbon dioxide (CO₂), displays the readings on an e-ink screen, and fits into an enclosure.
+An embedded air quality monitor built using an **STM32 NUCLEO-F446RE** development board. The goal is a device that measures airborne particulate matter (PM) and carbon dioxide (CO₂) and displays the readings on an e-ink screen.
 
-**Status:** SPS30 reliably working and validating checksum after receiving measurements. Tested with a candle and observed expected increases.
+**Status:** SPS30 reliably working and validating checksum after receiving measurements. Tested with a candle and observed expected increases. E-paper display driver is functional, but still working on text rendering and displaying PM measurements.
 
 ## Hardware
 
@@ -11,14 +11,13 @@ An embedded air quality monitor built around an **STM32 NUCLEO-F446RE** developm
 | STM32 NUCLEO-F446RE | Microcontroller development board | — | Firmware builds and runs |
 | Sensirion SPS30 | PM1.0, PM2.5, PM4, and PM10 measurements | UART | Working — measurements decoded and checksum validated |
 | Sensirion SCD41 | CO₂ measurements | I²C | Planned |
-| Waveshare 2.13-inch e-Paper HAT V4 (black/white) | Local display | SPI | Planned |
-| Perfboard and enclosure | Permanent assembly | — | Planned |
+| Waveshare 2.13-inch e-Paper HAT V4 (black/white) | Local display | SPI | In Progress |
 
 ## Software and tools
 
 - **Language:** C
 - **Firmware:** STM32 HAL, configured with STM32CubeMX
-- **Communication:** UART for the SPS30; I²C and SPI planned for the other components
+- **Communication:** UART for the SPS30; I²C and SPI for e-paper.
 
 ## Current progress
 
@@ -88,3 +87,4 @@ See [the development log](docs/development-log.md) for ongoing hardware bring-up
 ## Reference
 
 - [Sensirion SPS30 product documentation](https://sensirion.com/sps30)
+;
